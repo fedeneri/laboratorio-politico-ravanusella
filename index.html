@@ -1553,7 +1553,8 @@ function scaroApplyContent(){
       testo: n.testo || n.title,
       desc: n.desc || n.description || '',
       autore: n.autore || n.author || 'Scaro',
-      body: n.body || n.text || ''
+      body: n.body || n.text || '',
+      bibliografia: n.bibliografia || n.bibliography || ''
     });
   });
   (SCARO_EXTRA.events || []).slice().reverse().forEach(function(e){
@@ -2047,6 +2048,31 @@ function scaroParagraphs(v){
     return '<p style="margin:0 0 18px">'+escHTML(p).replace(/\n/g,'<br>')+'</p>';
   }).join('');
 }
+function scaroArticleHTML(v, bibliography){
+  var chunks = String(v || '').split(/\n{2,}/).map(function(p){ return p.trim(); }).filter(Boolean);
+  var html = chunks.map(function(p){
+    var plain = p.replace(/\s+/g,' ').trim();
+    var escaped = escHTML(p).replace(/\n/g,'<br>');
+    if(/^\d+\.\s+/.test(plain)){
+      return '<h2 style="font-family:var(--font-display);font-size:clamp(25px,3vw,38px);line-height:1.08;margin:46px 0 16px;padding-top:24px;border-top:2px solid var(--black);letter-spacing:0">'+escHTML(plain)+'</h2>';
+    }
+    if(/^[a-g]\)\s+/i.test(plain)){
+      var label = plain.slice(0, 2);
+      var rest = plain.slice(2).trim();
+      return '<section style="margin:26px 0;padding:18px 20px;border:2px solid var(--black);background:#fff6cf;box-shadow:5px 5px 0 var(--black)"><div style="font-family:var(--font-display);font-size:24px;line-height:1;margin-bottom:8px">'+escHTML(label)+'</div><p style="margin:0">'+escHTML(rest)+'</p></section>';
+    }
+    return '<p style="margin:0 0 20px">'+escaped+'</p>';
+  }).join('');
+  var refs = String(bibliography || '').split(/\n{1,}/).map(function(p){ return p.trim(); }).filter(Boolean);
+  if(refs.length){
+    html += '<section style="margin-top:54px;padding-top:28px;border-top:3px solid var(--black)">';
+    html += '<h2 style="font-family:var(--font-display);font-size:clamp(25px,3vw,36px);line-height:1.05;margin:0 0 18px;letter-spacing:0">Riferimenti bibliografici</h2>';
+    html += '<ol style="margin:0;padding-left:22px;font-size:14px;line-height:1.55;color:#333">';
+    html += refs.map(function(ref){ return '<li style="margin:0 0 12px">'+escHTML(ref)+'</li>'; }).join('');
+    html += '</ol></section>';
+  }
+  return html;
+}
 function findDynamicArticle(id){
   var news = MEDIA_ITEMS.find(function(m){ return m.dynamic && m.id === id; });
   if(news) return { kind:'news', item:news };
@@ -2073,7 +2099,7 @@ function renderDynamicArticle(id){
     : [it.autore ? 'di ' + it.autore : '', it.data || '', it.dur || ''].filter(Boolean);
   document.getElementById("dyn-meta").innerHTML = meta.map(function(x){ return '<span>'+escHTML(x)+'</span>'; }).join('<span>·</span>');
   document.getElementById("dyn-desc").textContent = isEvent ? (it.description || (it.info || []).join(' · ')) : (it.desc || '');
-  document.getElementById("dyn-body").innerHTML = scaroParagraphs(it.body || it.description || it.desc || '');
+  document.getElementById("dyn-body").innerHTML = scaroArticleHTML(it.body || it.description || it.desc || '', it.bibliografia || it.bibliography || '');
   window.scrollTo(0,0);
   return true;
 }
