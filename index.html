@@ -725,6 +725,7 @@ footer{background:var(--black);color:var(--white);padding:64px 60px 40px}
       </div>
     </div>
 
+    <a class="nav-link" id="nav-podcast" onclick="showPage('podcast')">Podcast</a>
     <a class="nav-link" id="nav-eventi" onclick="showPage('eventi')">Eventi</a>
     <a class="nav-link" id="nav-segnalazioni" onclick="showPage('segnalazioni')">Proposte</a>
   </div>
@@ -1274,6 +1275,108 @@ footer{background:var(--black);color:var(--white);padding:64px 60px 40px}
     <p id="dyn-desc" style="font-size:20px;line-height:1.5;margin:28px 0;color:#333"></p>
     <div id="dyn-body" style="font-size:17px;line-height:1.75;color:#222"></div>
   </div>
+</div>
+
+<!-- ══ PODCAST ══ -->
+<style>
+#page-podcast .pod-wrap{max-width:1280px;margin:0 auto;padding:0 clamp(20px,5vw,60px)}
+#page-podcast .pod-head{padding:clamp(36px,5vw,64px) clamp(20px,5vw,60px) clamp(28px,4vw,44px);border-bottom:var(--border);background:var(--cream)}
+#page-podcast .pod-eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--gray-dark);margin-bottom:14px}
+#page-podcast .pod-title{font-family:var(--font-display);font-size:clamp(48px,8vw,104px);font-weight:900;line-height:.86;letter-spacing:0;color:var(--blue);margin-bottom:18px}
+#page-podcast .pod-title em{font-style:italic}
+#page-podcast .pod-desc{font-size:clamp(15px,1.6vw,18px);line-height:1.55;color:#333;max-width:720px}
+#page-podcast .pod-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}
+#page-podcast .pod-spotify{display:inline-flex;align-items:center;gap:10px;background:var(--black);color:#fff;border:2px solid var(--black);padding:12px 18px;font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;text-decoration:none}
+#page-podcast .pod-spotify:hover{background:var(--accent-yellow);color:var(--blue)}
+#page-podcast .pod-count{display:inline-flex;align-items:center;border:2px solid var(--black);padding:12px 18px;font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;background:#fff}
+#page-podcast .pod-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(22px,3vw,36px);padding:clamp(28px,4vw,52px) 0}
+#page-podcast .pod-card{display:grid;grid-template-columns:150px 1fr;gap:20px;border:2px solid var(--black);background:#fff;box-shadow:7px 7px 0 var(--black);padding:18px;min-height:190px}
+#page-podcast .pod-card.trailer{background:var(--gray-light)}
+#page-podcast .pod-cover{width:150px;aspect-ratio:1/1;border:2px solid var(--black);background:var(--gray-mid);object-fit:cover}
+#page-podcast .pod-meta{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+#page-podcast .pod-chip{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--black);padding:4px 8px;background:var(--accent-yellow);color:var(--blue)}
+#page-podcast .pod-chip.dark{background:var(--black);color:#fff}
+#page-podcast .pod-name{font-family:var(--font-display);font-size:clamp(22px,2.2vw,30px);font-weight:900;line-height:1.05;margin-bottom:10px;letter-spacing:0}
+#page-podcast .pod-copy{font-size:14px;line-height:1.55;color:#333;margin-bottom:14px}
+#page-podcast .pod-link{display:inline-flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--black);text-decoration:none;border-bottom:2px solid var(--black);padding-bottom:2px}
+#page-podcast .pod-link:hover{color:var(--blue);border-color:var(--blue)}
+@media(max-width:900px){#page-podcast .pod-grid{grid-template-columns:1fr}}
+@media(max-width:560px){#page-podcast .pod-card{grid-template-columns:1fr}.pod-cover{width:100%}#page-podcast .pod-cover{width:100%}}
+</style>
+
+<div class="page" id="page-podcast">
+  <header class="pod-head">
+    <div class="pod-eyebrow">Podcast di Scaro</div>
+    <h1 class="pod-title">Voci in<br><em>Piazza</em></h1>
+    <p class="pod-desc">Uno sporco podcast sulle sporche vite di Piazza Ravanusella. Nel fastidioso brusio di Scaro Café, il racconto di storie autentiche e senza filtri.</p>
+    <div class="pod-actions">
+      <a class="pod-spotify" href="https://open.spotify.com/show/4PwkJZ4NHHggmkgaR3R1Pv" target="_blank" rel="noopener">Ascolta su Spotify →</a>
+      <span class="pod-count">5 puntate + trailer</span>
+    </div>
+  </header>
+
+  <section class="pod-wrap">
+    <div class="pod-grid">
+      <article class="pod-card">
+        <img class="pod-cover" src="https://i.scdn.co/image/ab6765630000ba8a52c29e11114d3675fa280472" alt="Monelli e scaristi">
+        <div>
+          <div class="pod-meta"><span class="pod-chip">30 Aprile 2024</span><span class="pod-chip dark">15 min</span></div>
+          <h2 class="pod-name">Monelli e scaristi</h2>
+          <p class="pod-copy">L'unica scarista donna diceva parolacce come i maschi, portava sempre uno scialle sulle spalle e la notte controllava che nessuno rubasse le cassette di limoni. Ma nulla poteva contro i monelli, scaltri e veloci. Piazza Ravanusella è piena di odori, colori e feste, ma anche di perdizione. Pochi resistono, molti scappano, piano piano il quartiere viene abbandonato dagli scaristi e dai Santi: è l'era di Marilù, Maria, Sabrina, chiddra cu l'occhiu di vitru...</p>
+          <a class="pod-link" href="https://open.spotify.com/episode/36KZEpgweNtiGFFkj7TRx7" target="_blank" rel="noopener">Ascolta la puntata →</a>
+        </div>
+      </article>
+
+      <article class="pod-card">
+        <img class="pod-cover" src="https://i.scdn.co/image/ab6765630000ba8a2eb461da171ac5d3cd6a406b" alt="Avamposto Mediterraneo">
+        <div>
+          <div class="pod-meta"><span class="pod-chip">23 Aprile 2024</span><span class="pod-chip dark">10 min</span></div>
+          <h2 class="pod-name">Avamposto Mediterraneo</h2>
+          <p class="pod-copy">Seduto con le gambe incrociate Roberto osserva il vasto orizzonte. Ma piazza Ravanusella non è una terrazza da cui contemplare il mare, è un avamposto sul Mediterraneo. Luogo di antiche avventure ed epiche battaglie, il Mediterraneo è il vuciare degli scaristi, circondato dal disordine della convivenza, custode della rotta dell'identità passata, presente e futura. Nemica giurata del mare del nord, protetta da chiese e moschee, piazza Ravanusella non cede al freddo razionalismo e traccia l'avvenire di uno spiritualismo rinnovato.</p>
+          <a class="pod-link" href="https://open.spotify.com/episode/7HDCuNakNgGbMGEInPCFK1" target="_blank" rel="noopener">Ascolta la puntata →</a>
+        </div>
+      </article>
+
+      <article class="pod-card">
+        <img class="pod-cover" src="https://i.scdn.co/image/ab6765630000ba8a8c71ad0ff8724f0a2c422ae2" alt="Il teatro greco sotto Piazza Ravanusella">
+        <div>
+          <div class="pod-meta"><span class="pod-chip">15 Aprile 2024</span><span class="pod-chip dark">10 min</span></div>
+          <h2 class="pod-name">Il teatro greco sotto Piazza Ravanusella</h2>
+          <p class="pod-copy">La parrucchieria dei gemelli Castronovo è l'attività più antica della piazza. Figli dello storico barbiere, Filippo e Lillo raccontano la propria infanzia tra giochi, feste e scoperte incredibili.</p>
+          <a class="pod-link" href="https://open.spotify.com/episode/6uvtvfByRxhOEDH26HQXq2" target="_blank" rel="noopener">Ascolta la puntata →</a>
+        </div>
+      </article>
+
+      <article class="pod-card">
+        <img class="pod-cover" src="https://i.scdn.co/image/ab6765630000ba8a6a305e7ab1eeb832ff11b251" alt="Di spiriti, palloni e speranze">
+        <div>
+          <div class="pod-meta"><span class="pod-chip">6 Aprile 2024</span><span class="pod-chip dark">20 min</span></div>
+          <h2 class="pod-name">Di spiriti, palloni e speranze</h2>
+          <p class="pod-copy">L'infanzia tra il Marocco e piazza Ravanusella. Una storia di spade, spiriti e pallonate, qualche occhio nero e tanti Pirandello.</p>
+          <a class="pod-link" href="https://open.spotify.com/episode/1iTCMx5QO8vePluFUclhQF" target="_blank" rel="noopener">Ascolta la puntata →</a>
+        </div>
+      </article>
+
+      <article class="pod-card trailer">
+        <img class="pod-cover" src="https://i.scdn.co/image/ab6765630000f68d377b7b86cf2f1135e13a51ac" alt="Voci in Piazza Trailer">
+        <div>
+          <div class="pod-meta"><span class="pod-chip">6 Aprile 2024</span><span class="pod-chip dark">Trailer</span></div>
+          <h2 class="pod-name">Voci in Piazza (Trailer)</h2>
+          <p class="pod-copy">Il trailer del podcast: il primo ingresso nel brusio di Scaro Café e nelle storie di Piazza Ravanusella.</p>
+          <a class="pod-link" href="https://open.spotify.com/episode/0xieJ0HPmLscoXz3twlX2n" target="_blank" rel="noopener">Ascolta il trailer →</a>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-grid">
+      <div><div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;"><img class="nav-logo-badge" src="pomodoro_originale_trasparente.png" alt="Pomodoro Scaro"><span class="footer-brand-name">Scaro</span></div><p class="footer-brand-desc">Cultura, attivismo e storie vive da Piazza Ravanusella.</p></div>
+      <div><p class="footer-col-title">Navigazione</p><a class="footer-link" onclick="showPage('home')">News</a><a class="footer-link" onclick="showPage('podcast')">Podcast</a><a class="footer-link" onclick="showPage('eventi')">Eventi</a><a class="footer-link" onclick="showPage('segnalazioni')">Proposte</a></div>
+      <div><p class="footer-col-title">Podcast</p><a class="footer-link" href="https://open.spotify.com/show/4PwkJZ4NHHggmkgaR3R1Pv" target="_blank">Voci in Piazza su Spotify</a></div>
+    </div>
+    <div class="footer-bottom"><span>© 2026 Scaro</span><span>Storie autentiche e senza filtri.</span></div>
+  </footer>
 </div>
 
 <!-- ══ EVENTI ══ -->
