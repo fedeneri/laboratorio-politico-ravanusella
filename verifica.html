@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verifica biglietto — Scaro</title>
+<meta name="robots" content="noindex,nofollow">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:#F4E7DB;color:#164194;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.card{max-width:420px;width:100%;border:3px solid #164194;background:#fff;padding:28px;text-align:center}
+h1{font-size:15px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:22px}
+.code{font-family:monospace;font-size:20px;letter-spacing:2px;margin-bottom:14px}
+.status{font-size:20px;font-weight:900;margin:16px 0;padding:16px;border:2px solid #164194}
+.ok{background:#d4f4dd;border-color:#1b5e20;color:#1b5e20}
+.bad{background:#fbdcdc;border-color:#b3261e;color:#b3261e}
+.info{font-size:14px;color:#444;margin-bottom:16px;line-height:1.5}
+button{font-family:inherit;font-size:14px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:14px 22px;border:2px solid #164194;background:#E8D7BE;color:#164194;cursor:pointer;width:100%;margin-top:8px}
+button:active{opacity:.8}
+input{font-family:monospace;font-size:18px;text-align:center;padding:12px;width:100%;border:2px solid #164194;margin-bottom:12px;text-transform:uppercase}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Verifica biglietto — Scaro</h1>
+  <div id="content">Caricamento…</div>
+</div>
+<script>
+/* ← sostituisci con l'URL del Worker dopo averlo pubblicato, es:
+   https://scaro-biglietti.tuoaccount.workers.dev */
+const API_BASE = 'INSERISCI_QUI_URL_WORKER';
+
+function getCodeFromUrl(){
+  var m = location.search.match(/[?&]c=([^&]+)/);
+  return m ? decodeURIComponent(m[1]).toUpperCase() : '';
+}
+function render(html){ document.getElementById('content').innerHTML = html; }
+
+function showManualForm(){
+  render(
+    '<input id="manual-code" placeholder="Codice biglietto" maxlength="14">' +
+    '<button id="verify-btn">Verifica</button>'
+  );
+  document.getElementById('verify-btn').onclick = function(){
+    checkCode(document.getElementById('manual-code').value.trim());
+  };
+}
+
+function checkCode(code){
+  if(!code){ showManualForm(); return; }
+  if(!API_BASE || API_BASE.indexOf('INSERISCI_QUI') === 0){
+    render('<div class="status bad">Backend non ancora configurato</div>');
+    return;
+  }
+  render('Verifica in corso…');
+  fetch(API_BASE + '/api/ticket/' + encodeURIComponent(code))
+    .then(function(r){ return r.json().then(function(d){ return { ok:r.ok, data:d }; }); })
+    .then(function(res){
+      if(!res.ok || !res.data.ok){
+        render('<div class="status bad">✗ Biglietto non valido</div><button id="retry-btn">Verifica un altro codice</button>');
+        document.getElementById('retry-btn').onclick = showManualForm;
+        return;
+      }
+      var t = res.data;
+      var info = '<div class="code">' + code + '</div><div class="info"><b>' + (t.eventTitle||'') + '</b><br>' + (t.tierLabel||'') + (t.buyerName ? '<br>' + t.buyerName : '') + '</div>';
+      if(t.used){
+        render(info + '<div class="status bad">✗ GIÀ USATO<br><span style="font-size:12px;font-weight:400">' + new Date(t.usedAt).toLocaleString('it-IT') + '</span></div><button id="retry-btn">Verifica un altro codice</button>');
+        document.getElementById('retry-btn').onclick = showManualForm;
+      } else {
+        render(info + '<div class="status ok">✓ VALIDO — NON ANCORA USATO</div><button id="checkin-btn">Segna ingresso</button>');
+        document.getElementById('checkin-btn').onclick = function(){ doCheckin(code); };
+      }
+    })
+    .catch(function(){
+      render('<div class="status bad">Errore di rete</div><button id="retry-btn">Riprova</button>');
+      document.getElementById('retry-btn').onclick = showManualForm;
+    });
+}
+
+function doCheckin(code){
+  render('Registrazione ingresso…');
+  fetch(API_BASE + '/api/ticket/' + encodeURIComponent(code) + '/checkin', { method:'POST' })
+    .then(function(r){ return r.json().then(function(d){ return { ok:r.ok, data:d }; }); })
+    .then(function(res){
+      if(res.ok && res.data.ok){
+        render('<div class="status ok">✓ INGRESSO REGISTRATO</div><button id="again-btn">Verifica un altro codice</button>');
+      } else if(res.data && res.data.error === 'already-used'){
+        render('<div class="status bad">✗ GIÀ USATO nel frattempo</div><button id="again-btn">Verifica un altro codice</button>');
+      } else {
+        render('<div class="status bad">Errore, riprova</div><button id="again-btn">Riprova</button>');
+      }
+      document.getElementById('again-btn').onclick = showManualForm;
+    })
+    .catch(function(){
+      render('<div class="status bad">Errore di rete</div><button id="again-btn">Riprova</button>');
+      document.getElementById('again-btn').onclick = showManualForm;
+    });
+}
+
+var initial = getCodeFromUrl();
+if(initial) checkCode(initial); else showManualForm();
+</script>
+</body>
+</html>
