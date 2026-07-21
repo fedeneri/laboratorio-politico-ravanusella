@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Scaro</title>
+<script>
+  var m = location.pathname.match(/\/articolo\/([^/]+?)(?:\.html)?\/?$/);
+  location.replace(m && m[1] ? '/?a=' + encodeURIComponent(m[1]) : '/');
+</script>
+</head>
+<body>
+<p><a href="/">Torna a Scaro</a></p>
+</body>
+</html>

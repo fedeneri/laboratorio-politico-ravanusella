@@ -3,9 +3,22 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
+<base href="/">
 <!-- v2.5 -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Scaro</title>
+<title id="scaro-title">Scaro</title>
+<meta name="description" id="meta-description" content="Market, Community, Cafe: cultura, incontro e monitoraggio civico ad Agrigento.">
+<link rel="canonical" id="meta-canonical" href="https://scaro.it/">
+<meta property="og:type" id="og-type" content="website">
+<meta property="og:site_name" content="Scaro">
+<meta property="og:title" id="og-title" content="Scaro">
+<meta property="og:description" id="og-description" content="Market, Community, Cafe: cultura, incontro e monitoraggio civico ad Agrigento.">
+<meta property="og:image" id="og-image" content="https://scaro.it/pomodoro_originale_trasparente.png">
+<meta property="og:url" id="og-url" content="https://scaro.it/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" id="twitter-title" content="Scaro">
+<meta name="twitter:description" id="twitter-description" content="Market, Community, Cafe: cultura, incontro e monitoraggio civico ad Agrigento.">
+<meta name="twitter:image" id="twitter-image" content="https://scaro.it/pomodoro_originale_trasparente.png">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -973,6 +986,7 @@ footer{background:var(--black);color:var(--white);padding:64px 60px 40px}
       <span>Dicembre 2025</span><span>·</span>
       <span>8 min di lettura</span>
     </div>
+    <div style="margin:18px 0 8px"><button class="btn-secondary scaro-share-btn" onclick="scaroShareArticle()">↗ Condividi</button></div>
     <div class="articolo-body">
 
       <p>La seguente analisi propone una breve descrizione dei dati raccolti durante l'indagine "Agrigento a Distanza: Identità, Istanze e Prospettive dei Fuorisede" lanciata nelle settimane successive il periodo estivo 2025 dalla comunità di Scaro<sup>1</sup>. La ricerca si poneva l'obiettivo di intercettare e analizzare l'identità politica dei fuorisede della città di Agrigento in modo da discutere delle nuove ed eventuali prospettive di partecipazione politica in vista delle prossime elezioni amministrative del 2026.</p>
@@ -1193,6 +1207,7 @@ footer{background:var(--black);color:var(--white);padding:64px 60px 40px}
       <span>Scaro</span><span>·</span>
       <span>~2 ore</span>
     </div>
+    <div style="margin:18px 0 8px"><button class="btn-secondary scaro-share-btn" onclick="scaroShareArticle()">↗ Condividi</button></div>
     <h2 style="font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:16px;">Affinità e divergenze tra noi e il compagno Roberto Di Mauro</h2>
     <p style="font-size:17px;line-height:1.8;color:#222;margin-bottom:32px;">Dal 1993 a oggi sono passati trentatré anni. Una data tutt&#39;altro che casuale: è l&#39;anno in cui, per la prima volta, i cittadini hanno scelto direttamente il proprio sindaco. Il 2026 ci consegna uno degli esiti più eclatanti di questi trentatré anni di elezione diretta.<br><br>Proveremo a fare un&#39;analisi del voto: convergenze e divergenze tra il 1993 e il 2026, per capire cosa è cambiato e cosa, ostinatamente, no.</p>
     <div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;margin:32px 0;border:2px solid var(--black);">
@@ -1216,6 +1231,7 @@ footer{background:var(--black);color:var(--white);padding:64px 60px 40px}
       <span>4 Luglio 2026 · ore 19:00</span><span>·</span>
       <span>Scaro</span>
     </div>
+    <div style="margin:18px 0 8px"><button class="btn-secondary scaro-share-btn" onclick="scaroShareArticle()">↗ Condividi</button></div>
     <h2 style="font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:16px;">Criticità attuali e prospettive future</h2>
     <div id="locandina-rifiuti"></div>
     <p style="font-size:17px;line-height:1.8;color:#222;margin-bottom:24px;">Una tavola rotonda civica e tecnica sulla gestione dei rifiuti ad Agrigento, con l'obiettivo di mettere attorno allo stesso tavolo amministrazione, competenze tecniche, controlli, comunità di quartiere, associazioni e cittadini.</p>
@@ -1246,6 +1262,7 @@ footer{background:var(--black);color:var(--white);padding:64px 60px 40px}
       <span>18 Luglio 2026 · ore 19:30</span><span>·</span>
       <span>Scaro</span>
     </div>
+    <div style="margin:18px 0 8px"><button class="btn-secondary scaro-share-btn" onclick="scaroShareArticle()">↗ Condividi</button></div>
     <h2 style="font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:16px;">Presentazione della campagna del PattoXrestare</h2>
     <div id="locandina-restare"></div>
     <p style="font-size:17px;line-height:1.8;color:#222;margin-bottom:24px;">Stiamo costruendo dal basso una piattaforma di proposte concrete: scritte con tecnici, comitati, assemblee e organizzazioni. Per trasformare le nostre istanze in progettualità e dimostrare una Sicilia dove restare è una scelta possibile.</p>
@@ -1272,6 +1289,7 @@ footer{background:var(--black);color:var(--white);padding:64px 60px 40px}
     <div class="articolo-tipo" id="dyn-tipo"></div>
     <h1 class="articolo-title" id="dyn-title"></h1>
     <div class="articolo-meta" id="dyn-meta"></div>
+    <div style="margin:18px 0 8px"><button class="btn-secondary scaro-share-btn" onclick="scaroShareArticle()">↗ Condividi</button></div>
     <p id="dyn-desc" style="font-size:20px;line-height:1.5;margin:28px 0;color:#333"></p>
     <div id="dyn-body" style="font-size:17px;line-height:1.75;color:#222"></div>
   </div>
@@ -1597,7 +1615,7 @@ const EVENTI_FUTURI = [
   { id:'rifiuti', day:'04', mon:'Luglio', yr:'2026', kind:'Tavola rotonda',
     title:'La gestione dei rifiuti ad Agrigento',
     info:['🕖 Ore 19:00', '📍 Scaro', 'Criticità attuali e prospettive future'],
-    flyer:'', /* ← inserire qui l'URL della locandina, es: 'assets/locandina-rifiuti.jpg' */
+    flyer:'content/assets/locandina-rifiuti-04-07.png', /* ← locandina evento rifiuti del 4 luglio */
     ics:{ dtstart:'20260704T170000Z', dtend:'20260704T200000Z', summary:'La gestione dei rifiuti ad Agrigento', location:'Scaro Cafè, Agrigento', description:'Una tavola rotonda civica e tecnica sulla gestione dei rifiuti.' } },
   { id:'restare', day:'18', mon:'Luglio', yr:'2026', kind:'Presentazione',
     title:'Non restiamo senza — PattoXrestare',
@@ -1658,7 +1676,8 @@ function scaroApplyContent(){
       desc: n.desc || n.description || '',
       autore: n.autore || n.author || 'Scaro',
       body: n.body || n.text || '',
-      bibliografia: n.bibliografia || n.bibliography || ''
+      bibliografia: n.bibliografia || n.bibliography || '',
+      img: n.img || n.image || ''
     });
   });
   (SCARO_EXTRA.events || []).slice().reverse().forEach(function(e){
@@ -1687,6 +1706,114 @@ function scaroApplyContent(){
   });
 }
 scaroApplyContent();
+
+/* -- CONDIVISIONE: URL reali per articoli/eventi + meta tag Open Graph dinamici -- */
+const SCARO_BASE_URL = 'https://scaro.it';
+var SCARO_CURRENT_ARTICLE_ID = null;
+
+function scaroAbsUrl(path){
+  if(!path) return '';
+  if(/^https?:\/\//i.test(path)) return path;
+  return SCARO_BASE_URL + '/' + String(path).replace(/^\/+/, '');
+}
+function scaroPlainText(s, max){
+  max = max || 200;
+  var t = String(s || '').replace(/\s+/g, ' ').trim();
+  return t.length > max ? t.slice(0, max - 1).trim() + '…' : t;
+}
+function scaroDefaultMeta(){
+  return {
+    title: 'Scaro',
+    description: 'Market, Community, Cafe: cultura, incontro e monitoraggio civico ad Agrigento.',
+    image: SCARO_BASE_URL + '/pomodoro_originale_trasparente.png',
+    url: SCARO_BASE_URL + '/'
+  };
+}
+function scaroSetMeta(meta){
+  document.title = meta.title;
+  function set(id, val){ var el = document.getElementById(id); if(el) el.setAttribute('content', val); }
+  set('meta-description', meta.description);
+  set('og-title', meta.title);
+  set('og-description', meta.description);
+  set('og-image', meta.image);
+  set('og-url', meta.url);
+  set('twitter-title', meta.title);
+  set('twitter-description', meta.description);
+  set('twitter-image', meta.image);
+  var canonical = document.getElementById('meta-canonical'); if(canonical) canonical.setAttribute('href', meta.url);
+}
+function scaroItemImage(it){
+  if(it.img) return scaroAbsUrl(it.img);
+  if(it.flyer) return scaroAbsUrl(it.flyer);
+  if(it.youtube) return 'https://img.youtube.com/vi/' + it.youtube + '/maxresdefault.jpg';
+  return scaroDefaultMeta().image;
+}
+function scaroFindItem(id){
+  var news = MEDIA_ITEMS.find(function(m){ return m.id === id; });
+  if(news) return { kind:'news', item:news, urlId:id };
+  var rawId = String(id || '').replace(/^evento-/, '');
+  var ev = EVENTI_FUTURI.find(function(e){ return e.id === rawId; });
+  if(ev) return { kind:'event', item:ev, urlId:'evento-' + rawId };
+  return null;
+}
+function scaroArticlePath(urlId){ return '/articolo/' + urlId + '.html'; }
+function scaroArticleShareUrl(urlId){ return SCARO_BASE_URL + scaroArticlePath(urlId); }
+function scaroApplyArticleMeta(id, opts){
+  opts = opts || {};
+  var found = scaroFindItem(id);
+  if(!found) return;
+  var it = found.item, isEvent = found.kind === 'event';
+  var title = (isEvent ? it.title : it.testo) + ' — Scaro';
+  var rawDesc = isEvent ? (it.description || (it.info || []).join(' · ')) : (it.desc || it.body);
+  var desc = scaroPlainText(rawDesc) || scaroDefaultMeta().description;
+  scaroSetMeta({ title:title, description:desc, image:scaroItemImage(it), url:scaroArticleShareUrl(found.urlId) });
+  SCARO_CURRENT_ARTICLE_ID = id;
+  if(!opts.silent){
+    try {
+      var path = scaroArticlePath(found.urlId);
+      if(opts.replace) history.replaceState({ scaroArticle:id }, '', path);
+      else history.pushState({ scaroArticle:id }, '', path);
+    } catch(e){ /* pushState non disponibile (es. file://): ignora */ }
+  }
+}
+function scaroParseArticleIdFromLocation(){
+  try {
+    var params = new URLSearchParams(location.search);
+    if(params.has('a')) return params.get('a');
+  } catch(e){}
+  var m = location.pathname.match(/\/articolo\/([^/]+?)(?:\.html)?\/?$/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+function scaroShareArticle(){
+  var id = SCARO_CURRENT_ARTICLE_ID;
+  var found = id ? scaroFindItem(id) : null;
+  var it = found ? found.item : null;
+  var title = it ? (found.kind === 'event' ? it.title : it.testo) : document.title;
+  var url = found ? scaroArticleShareUrl(found.urlId) : location.href;
+  var text = it ? (found.kind === 'event' ? (it.description || '') : (it.desc || '')) : '';
+  var btn = document.querySelector('.page.active .scaro-share-btn');
+  function flash(msg){
+    if(!btn) return;
+    var prev = btn.dataset.label || btn.textContent;
+    btn.dataset.label = prev;
+    btn.textContent = msg;
+    setTimeout(function(){ btn.textContent = prev; }, 2200);
+  }
+  if(navigator.share){
+    navigator.share({ title:title, text:text, url:url }).catch(function(){});
+    return;
+  }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(function(){ flash('✓ Link copiato'); }).catch(function(){ flash('Copia manualmente: ' + url); });
+  } else {
+    flash('Copia manualmente: ' + url);
+  }
+}
+window.addEventListener('popstate', function(){
+  var id = scaroParseArticleIdFromLocation();
+  if(id){ showArticolo(id, { silent:true }); }
+  else { scaroSetMeta(scaroDefaultMeta()); }
+});
 
 /* -- CONSIGLIO COMUNALE - per la foto aggiungi  foto:'assets/foto/nome.jpg' -- */
 const CONSIGLIERI = [
@@ -2185,7 +2312,7 @@ function findDynamicArticle(id){
   if(ev) return { kind:'event', item:ev };
   return null;
 }
-function renderDynamicArticle(id){
+function renderDynamicArticle(id, opts){
   var found = findDynamicArticle(id);
   if(!found) return false;
   var it = found.item;
@@ -2205,17 +2332,19 @@ function renderDynamicArticle(id){
   document.getElementById("dyn-desc").textContent = isEvent ? (it.description || (it.info || []).join(' · ')) : (it.desc || '');
   document.getElementById("dyn-body").innerHTML = scaroArticleHTML(it.body || it.description || it.desc || '', it.bibliografia || it.bibliography || '');
   window.scrollTo(0,0);
+  scaroApplyArticleMeta(id, opts);
   return true;
 }
-function openArticolo(id){var el=document.getElementById('page-articolo-'+id); if(el){showArticolo(id);} else if(!renderDynamicArticle(id)){showPage('home');}}
-function showArticolo(id) {
+function openArticolo(id, opts){var el=document.getElementById('page-articolo-'+id); if(el){showArticolo(id, opts);} else if(!renderDynamicArticle(id, opts)){showPage('home');}}
+function showArticolo(id, opts) {
   var staticPage = document.getElementById("page-articolo-"+id);
-  if(!staticPage && renderDynamicArticle(id)) return;
+  if(!staticPage && renderDynamicArticle(id, opts)) return;
   document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
   document.querySelectorAll(".nav-link").forEach(l => l.classList.remove("active"));
   staticPage.classList.add("active");
   var _nm=document.getElementById("nav-home"); if(_nm) _nm.classList.add("active");
   window.scrollTo(0,0);
+  scaroApplyArticleMeta(id, opts);
 }
 
 /* ===================== [4] NAVIGAZIONE E INTERAZIONI ===================== */
@@ -2243,6 +2372,11 @@ function showPage(name) {
     var consiglieriAttiva = tabC && tabC.classList.contains('active');
     if(name === 'consiglio' && consiglieriAttiva){ interro.classList.add('shown'); }
     else { interro.classList.remove('shown'); if(typeof rilascia==='function') rilascia(); }
+  }
+  if(/^\/articolo\//.test(location.pathname)){
+    SCARO_CURRENT_ARTICLE_ID = null;
+    scaroSetMeta(scaroDefaultMeta());
+    try { history.pushState({}, '', '/'); } catch(e){}
   }
 }
 
@@ -2527,6 +2661,12 @@ renderHomeNews('tutti');
 renderMediaGrid('tutti');
 renderEventi();
 fetchAtti();
+
+// Se l'URL punta a un articolo/evento specifico (?a=ID oppure /articolo/ID.html), aprilo subito
+(function(){
+  var id = scaroParseArticleIdFromLocation();
+  if(id) showArticolo(id, { replace:true });
+})();
 
 // Responsive quadranti
 function fixGrid() {
