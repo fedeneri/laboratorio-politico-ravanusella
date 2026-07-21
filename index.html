@@ -1707,6 +1707,11 @@ function scaroEventParts(e){
     yr: e.yr || p[0] || ''
   };
 }
+function scaroEventDateObj(e){
+  var monIdx = SCARO_MONTHS.indexOf(e.mon);
+  if(monIdx < 0 || !e.day || !e.yr) return null;
+  return new Date(parseInt(e.yr,10), monIdx, parseInt(e.day,10), 23, 59, 59);
+}
 function scaroApplyContent(){
   (SCARO_EXTRA.news || []).slice().reverse().forEach(function(n){
     var id = n.id || scaroSafeId(n.title || n.testo);
@@ -2756,7 +2761,12 @@ function renderEventi(){
   // meta
   var oggi = new Date();
   var oggiTxt = oggi.getDate() + ' ' + SCARO_MONTHS[oggi.getMonth()] + ' ' + oggi.getFullYear();
-  var visibili = EVENTI_FUTURI.filter(function(e){ return !e.hidden; });
+  var now = new Date();
+  var visibili = EVENTI_FUTURI.filter(function(e){
+    if(e.hidden) return false;
+    var d = scaroEventDateObj(e);
+    return !d || d >= now;
+  });
   document.getElementById('evp-metarow').innerHTML =
       '<span><b>'+visibili.length+'</b> in arrivo</span>'
     + '<span><b>'+EVENTI_PASSATI.length+'</b> nell\u2019archivio</span>'
@@ -2777,7 +2787,7 @@ function renderEventi(){
       var tiers = scaroTiersOf(e);
       var priceBadge = tiers.length ? '<div class="evp-price">🎟 ' + (tiers.length > 1 ? 'da ' : '') + scaroFmtPrice(Math.min.apply(null, tiers.map(function(t){ return t.price; }))) + '</div>' : '';
       var featured = !!e.featured;
-      var cardStyle = 'cursor:pointer' + (featured ? ';border-color:var(--red);box-shadow:6px 6px 0 var(--red);transform:scale(1.03)' : '');
+      var cardStyle = 'cursor:pointer' + (featured ? ';border:3px solid var(--red);box-shadow:5px 5px 0 var(--red)' : '');
       var statusLabel = featured ? '🎉 In evidenza' : 'In arrivo';
       return '<div class="flyer" style="'+cardStyle+'" onclick="showArticolo(\'evento-'+e.id+'\')">'
         + '<div class="flyer-top"><div><div class="flyer-day">'+e.day+'</div><div class="flyer-mon">'+e.mon+'</div></div><span class="evp-status"'+(featured ? ' style="background:var(--red)"' : '')+'>'+statusLabel+'</span></div>'
