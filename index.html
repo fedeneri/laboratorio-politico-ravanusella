@@ -2663,6 +2663,7 @@ function scaroRenderTicketButton(e){
   if(!mount) return;
   var status = document.getElementById('paypal-status-' + e.id);
   var tiers = scaroTiersOf(e);
+  var detailedErrorShown = false;
   mount.innerHTML = '<div style="font-family:var(--font-mono);font-size:12px;color:#888;">Caricamento pagamento…</div>';
   scaroLoadPaypalSdk().then(function(paypal){
     mount.innerHTML = '';
@@ -2670,6 +2671,7 @@ function scaroRenderTicketButton(e){
       style: { layout:'horizontal', color:'gold', shape:'pill', label:'pay', height:45 },
       createOrder: function(data, actions){
         if(!SCARO_API_BASE || SCARO_API_BASE.indexOf('INSERISCI_QUI') === 0){
+          detailedErrorShown = true;
           if(status) status.innerHTML = '<div class="scaro-ticket-err">Pagamento non ancora disponibile per questo evento.</div>';
           return Promise.reject(new Error('missing-api-base'));
         }
@@ -2686,6 +2688,7 @@ function scaroRenderTicketButton(e){
         }).then(function(r){ return r.json(); }).then(function(res){
           if(!res.id){
             console.error('Scaro: creazione ordine PayPal fallita', res);
+            detailedErrorShown = true;
             if(status) status.innerHTML = '<div class="scaro-ticket-err">Errore creazione ordine: ' + escHTML(res.error || 'sconosciuto') + (res.detail ? '<br><span style="font-size:11px;opacity:.8">' + escHTML(res.detail) + '</span>' : '') + '</div>';
             throw new Error('create-order-failed');
           }
@@ -2720,7 +2723,7 @@ function scaroRenderTicketButton(e){
         if(status) status.innerHTML = '';
       },
       onError: function(err){
-        if(status) status.innerHTML = '<div class="scaro-ticket-err">Si è verificato un problema con il pagamento. Riprova tra poco o scrivici.</div>';
+        if(status && !detailedErrorShown) status.innerHTML = '<div class="scaro-ticket-err">Si è verificato un problema con il pagamento. Riprova tra poco o scrivici.</div>';
         console.error('PayPal error', err);
       }
     }).render(mount);
