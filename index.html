@@ -1291,11 +1291,11 @@ footer{background:var(--black);color:var(--white);padding:64px 60px 40px}
     <div class="articolo-tipo" id="dyn-tipo"></div>
     <h1 class="articolo-title" id="dyn-title"></h1>
     <div class="articolo-meta" id="dyn-meta"></div>
+    <div id="dyn-ticket"></div>
     <div style="margin:18px 0 8px"><button class="btn-secondary scaro-share-btn" onclick="scaroShareArticle()">↗ Condividi</button></div>
     <div id="dyn-image"></div>
     <p id="dyn-desc" style="font-size:20px;line-height:1.5;margin:28px 0;color:#333"></p>
     <div id="dyn-body" style="font-size:17px;line-height:1.75;color:#222"></div>
-    <div id="dyn-ticket"></div>
   </div>
 </div>
 
@@ -1425,11 +1425,14 @@ footer{background:var(--black);color:var(--white);padding:64px 60px 40px}
 #page-eventi .flyer-day{font-family:var(--font-display);font-weight:900;font-size:clamp(56px,7vw,80px);line-height:0.8;letter-spacing:-0.03em}
 #page-eventi .flyer-mon{font-family:var(--font-mono);font-size:13px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;margin-top:6px}
 #page-eventi .evp-status{font-family:var(--font-mono);font-size:9px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:4px 9px;border:1px solid var(--black);background:var(--black);color:var(--yellow)}
+#page-eventi .evp-status.featured{animation:evpPulse 1.6s ease-in-out infinite}
+@keyframes evpPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+@media(prefers-reduced-motion:reduce){#page-eventi .evp-status.featured{animation:none}}
 #page-eventi .flyer-body{padding:18px 22px 0;flex:1}
 #page-eventi .flyer-title{font-family:var(--font-display);font-size:clamp(22px,2.4vw,28px);font-weight:800;line-height:1.1;margin-bottom:14px}
 #page-eventi .evp-price{display:inline-block;font-family:var(--font-mono);font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--blue);background:var(--yellow);border:1px solid var(--black);padding:3px 9px;margin-bottom:12px}
 #page-eventi .flyer-info{font-family:var(--font-mono);font-size:12px;line-height:1.8;color:#222}
-.scaro-ticket-box{border:2px solid var(--black);background:#fff;box-shadow:6px 6px 0 var(--black);padding:24px 28px;margin:28px 0;max-width:440px}
+.scaro-ticket-box{border:3px solid var(--black);background:var(--yellow);box-shadow:7px 7px 0 var(--black);padding:26px 28px;margin:20px 0 28px;max-width:460px}
 .scaro-ticket-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:18px;flex-wrap:wrap}
 .scaro-ticket-label{font-family:var(--font-mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--gray-dark);margin-bottom:4px}
 .scaro-ticket-price{font-family:var(--font-display);font-size:34px;font-weight:900;color:var(--blue);line-height:1}
@@ -2790,7 +2793,7 @@ function renderEventi(){
       var cardStyle = 'cursor:pointer' + (featured ? ';border:3px solid var(--red);box-shadow:5px 5px 0 var(--red)' : '');
       var statusLabel = featured ? '🎉 In evidenza' : 'In arrivo';
       return '<div class="flyer" style="'+cardStyle+'" onclick="showArticolo(\'evento-'+e.id+'\')">'
-        + '<div class="flyer-top"><div><div class="flyer-day">'+e.day+'</div><div class="flyer-mon">'+e.mon+'</div></div><span class="evp-status"'+(featured ? ' style="background:var(--red)"' : '')+'>'+statusLabel+'</span></div>'
+        + '<div class="flyer-top"><div><div class="flyer-day">'+e.day+'</div><div class="flyer-mon">'+e.mon+'</div></div><span class="evp-status'+(featured ? ' featured' : '')+'"'+(featured ? ' style="background:var(--red)"' : '')+'>'+statusLabel+'</span></div>'
         + '<div class="flyer-body"><div class="flyer-title">'+e.title+'</div>' + priceBadge + '<div class="flyer-info">'+info+'</div></div>'
         + '<div class="evp-tear"></div>'
         + '<div class="flyer-foot"><a class="btn-rsvp" onclick="event.stopPropagation();showArticolo(\'evento-'+e.id+'\')">Info →</a><a class="btn-cal" onclick="event.stopPropagation();downloadICS(\''+e.id+'\')">+ Cal</a></div>'
