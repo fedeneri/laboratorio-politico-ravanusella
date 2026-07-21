@@ -1240,6 +1240,7 @@ footer{background:var(--black);color:var(--white);padding:64px 60px 40px}
       <div><div style="font-family:var(--font-mono);font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:#444;margin-bottom:6px;">Quando</div><div style="font-family:var(--font-display);font-size:22px;font-weight:800;">4 Luglio 2026 · ore 19:00</div></div>
       <div><div style="font-family:var(--font-mono);font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:#444;margin-bottom:6px;">Dove</div><div style="font-family:var(--font-display);font-size:22px;font-weight:800;">Scaro Cafè, Agrigento</div></div>
     </div>
+    <div id="biglietto-rifiuti"></div>
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;">
       <button class="btn-primary" onclick="downloadICS('rifiuti')">+ Aggiungi al calendario</button>
       <button class="btn-secondary" onclick="showPage('eventi')">← Tutti gli eventi</button>
@@ -1270,6 +1271,7 @@ footer{background:var(--black);color:var(--white);padding:64px 60px 40px}
       <div><div style="font-family:var(--font-mono);font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:#444;margin-bottom:6px;">Quando</div><div style="font-family:var(--font-display);font-size:22px;font-weight:800;">18 Luglio 2026 · ore 19:30</div></div>
       <div><div style="font-family:var(--font-mono);font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:#444;margin-bottom:6px;">Dove</div><div style="font-family:var(--font-display);font-size:22px;font-weight:800;">Scaro Cafè, Agrigento</div></div>
     </div>
+    <div id="biglietto-restare"></div>
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;">
       <button class="btn-primary" onclick="downloadICS('restare')">+ Aggiungi al calendario</button>
       <button class="btn-secondary" onclick="showPage('eventi')">← Tutti gli eventi</button>
@@ -1292,6 +1294,7 @@ footer{background:var(--black);color:var(--white);padding:64px 60px 40px}
     <div style="margin:18px 0 8px"><button class="btn-secondary scaro-share-btn" onclick="scaroShareArticle()">↗ Condividi</button></div>
     <p id="dyn-desc" style="font-size:20px;line-height:1.5;margin:28px 0;color:#333"></p>
     <div id="dyn-body" style="font-size:17px;line-height:1.75;color:#222"></div>
+    <div id="dyn-ticket"></div>
   </div>
 </div>
 
@@ -1423,7 +1426,17 @@ footer{background:var(--black);color:var(--white);padding:64px 60px 40px}
 #page-eventi .evp-status{font-family:var(--font-mono);font-size:9px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:4px 9px;border:1px solid var(--black);background:var(--black);color:var(--yellow)}
 #page-eventi .flyer-body{padding:18px 22px 0;flex:1}
 #page-eventi .flyer-title{font-family:var(--font-display);font-size:clamp(22px,2.4vw,28px);font-weight:800;line-height:1.1;margin-bottom:14px}
+#page-eventi .evp-price{display:inline-block;font-family:var(--font-mono);font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--blue);background:var(--yellow);border:1px solid var(--black);padding:3px 9px;margin-bottom:12px}
 #page-eventi .flyer-info{font-family:var(--font-mono);font-size:12px;line-height:1.8;color:#222}
+.scaro-ticket-box{border:2px solid var(--black);background:#fff;box-shadow:6px 6px 0 var(--black);padding:24px 28px;margin:28px 0;max-width:440px}
+.scaro-ticket-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:18px;flex-wrap:wrap}
+.scaro-ticket-label{font-family:var(--font-mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--gray-dark);margin-bottom:4px}
+.scaro-ticket-price{font-family:var(--font-display);font-size:34px;font-weight:900;color:var(--blue);line-height:1}
+.scaro-ticket-note{font-size:13px;color:#555;max-width:220px;text-align:right;line-height:1.4}
+.scaro-ticket-btns{min-height:45px}
+.scaro-ticket-status{margin-top:14px;font-size:14px;line-height:1.5}
+.scaro-ticket-ok{color:#1b5e20;font-weight:600}
+.scaro-ticket-err{color:#b3261e;font-weight:600}
 #page-eventi .evp-tear{margin:18px 0 0;border-top:2px dashed var(--black);position:relative}
 #page-eventi .evp-tear::before,#page-eventi .evp-tear::after{content:'';position:absolute;top:-11px;width:20px;height:20px;border-radius:50%;background:var(--white);border:2px solid var(--black)}
 #page-eventi .evp-tear::before{left:-12px}#page-eventi .evp-tear::after{right:-12px}
@@ -1616,11 +1629,13 @@ const EVENTI_FUTURI = [
     title:'La gestione dei rifiuti ad Agrigento',
     info:['🕖 Ore 19:00', '📍 Scaro', 'Criticità attuali e prospettive future'],
     flyer:'content/assets/locandina-rifiuti-04-07.png', /* ← locandina evento rifiuti del 4 luglio */
+    price:0, /* ← se l'evento è a pagamento, metti qui il prezzo in euro (es. 5), altrimenti lascia 0 */
     ics:{ dtstart:'20260704T170000Z', dtend:'20260704T200000Z', summary:'La gestione dei rifiuti ad Agrigento', location:'Scaro Cafè, Agrigento', description:'Una tavola rotonda civica e tecnica sulla gestione dei rifiuti.' } },
   { id:'restare', day:'18', mon:'Luglio', yr:'2026', kind:'Presentazione',
     title:'Non restiamo senza — PattoXrestare',
     info:['🕖 Ore 19:30', '📍 Scaro', 'Campagna del PattoXrestare'],
     flyer:'', /* ← inserire qui l'URL della locandina */
+    price:0, /* ← se l'evento è a pagamento, metti qui il prezzo in euro (es. 5), altrimenti lascia 0 */
     ics:{ dtstart:'20260718T173000Z', dtend:'20260718T203000Z', summary:'Non restiamo senza — PattoXrestare', location:'Scaro Cafè, Agrigento', description:'Presentazione della campagna PattoXrestare: una piattaforma di proposte concrete per una Sicilia dove restare è una scelta possibile.' } },
 ];
 
@@ -1701,6 +1716,8 @@ function scaroApplyContent(){
       description: e.description || '',
       body: e.body || e.text || e.description || '',
       flyer: e.flyer || '',
+      price: Number(e.price || e.prezzo) || 0,
+      ticketNote: e.ticketNote || e.notaBiglietto || '',
       ics: e.ics || null
     });
   });
@@ -1886,6 +1903,13 @@ const CONSIGLIERI = [
 const API = "https://fede97.pythonanywhere.com/api/albo";
 let tuttiGliAtti = [];
 let filtroCorrente = "tutti";
+
+/* -- BIGLIETTI EVENTI A PAGAMENTO (PayPal) --
+   Il Client ID PayPal è un identificativo PUBBLICO (come una chiave "publishable"):
+   è normale e sicuro che compaia nel codice del sito. Non inserire MAI qui il
+   "Secret" dell'app PayPal: quello va tenuto privato e non serve per i pulsanti. */
+const PAYPAL_CLIENT_ID = 'INSERISCI_QUI_IL_CLIENT_ID_PAYPAL'; /* ← sostituisci col Client ID della tua app su developer.paypal.com */
+const PAYPAL_CURRENCY = 'EUR';
 
 
 const svg = ``;
@@ -2370,6 +2394,11 @@ function renderDynamicArticle(id, opts){
   document.getElementById("dyn-meta").innerHTML = meta.map(function(x){ return '<span>'+escHTML(x)+'</span>'; }).join('<span>·</span>');
   document.getElementById("dyn-desc").textContent = isEvent ? (it.description || (it.info || []).join(' · ')) : (it.desc || '');
   document.getElementById("dyn-body").innerHTML = scaroArticleHTML(it.body || it.description || it.desc || '', it.bibliografia || it.bibliography || '');
+  var ticketSlot = document.getElementById("dyn-ticket");
+  if(ticketSlot){
+    if(isEvent && Number(it.price) > 0){ ticketSlot.innerHTML = scaroTicketBoxHTML(it); scaroRenderTicketButton(it); }
+    else { ticketSlot.innerHTML = ''; }
+  }
   window.scrollTo(0,0);
   scaroApplyArticleMeta(id, opts);
   return true;
@@ -2543,6 +2572,82 @@ function filterHome(cat, btn){
 
 /* ── EVENTI ── */
 
+/* ── BIGLIETTI (PayPal) ── */
+function scaroFmtPrice(v){ return (Number(v)||0).toFixed(2).replace('.', ',') + ' €'; }
+var scaroPaypalSdkPromise = null;
+function scaroLoadPaypalSdk(){
+  if(scaroPaypalSdkPromise) return scaroPaypalSdkPromise;
+  scaroPaypalSdkPromise = new Promise(function(resolve, reject){
+    if(window.paypal){ resolve(window.paypal); return; }
+    if(!PAYPAL_CLIENT_ID || PAYPAL_CLIENT_ID.indexOf('INSERISCI_QUI') === 0){ reject(new Error('missing-client-id')); return; }
+    var s = document.createElement('script');
+    s.src = 'https://www.paypal.com/sdk/js?client-id=' + encodeURIComponent(PAYPAL_CLIENT_ID) + '&currency=' + encodeURIComponent(PAYPAL_CURRENCY) + '&intent=capture';
+    s.onload = function(){ window.paypal ? resolve(window.paypal) : reject(new Error('sdk-not-ready')); };
+    s.onerror = function(){ reject(new Error('sdk-load-error')); };
+    document.head.appendChild(s);
+  });
+  return scaroPaypalSdkPromise;
+}
+function scaroTicketBoxHTML(e){
+  return '<div class="scaro-ticket-box">'
+    + '<div class="scaro-ticket-head">'
+    +   '<div><div class="scaro-ticket-label">Biglietto</div><div class="scaro-ticket-price">' + scaroFmtPrice(e.price) + '</div></div>'
+    +   (e.ticketNote ? '<div class="scaro-ticket-note">' + escHTML(e.ticketNote) + '</div>' : '')
+    + '</div>'
+    + '<div id="paypal-btn-' + e.id + '" class="scaro-ticket-btns"></div>'
+    + '<div id="paypal-status-' + e.id + '" class="scaro-ticket-status"></div>'
+    + '</div>';
+}
+function scaroRenderTicketButton(e){
+  var mount = document.getElementById('paypal-btn-' + e.id);
+  if(!mount) return;
+  var status = document.getElementById('paypal-status-' + e.id);
+  mount.innerHTML = '<div style="font-family:var(--font-mono);font-size:12px;color:#888;">Caricamento pagamento…</div>';
+  scaroLoadPaypalSdk().then(function(paypal){
+    mount.innerHTML = '';
+    paypal.Buttons({
+      style: { layout:'horizontal', color:'gold', shape:'pill', label:'pay', height:45 },
+      createOrder: function(data, actions){
+        return actions.order.create({
+          purchase_units: [{
+            description: ('Biglietto — ' + (e.title || e.testo || 'Evento Scaro')).slice(0,127),
+            custom_id: e.id,
+            amount: { currency_code: PAYPAL_CURRENCY, value: (Number(e.price)||0).toFixed(2) }
+          }]
+        });
+      },
+      onApprove: function(data, actions){
+        return actions.order.capture().then(function(details){
+          var nome = (details.payer && details.payer.name && details.payer.name.given_name) || '';
+          if(status) status.innerHTML = '<div class="scaro-ticket-ok">✓ Pagamento ricevuto' + (nome ? ', grazie ' + escHTML(nome) : '') + '! Conserva la ricevuta PayPal come biglietto (riferimento ordine: ' + escHTML(details.id) + ').</div>';
+          mount.style.display = 'none';
+        });
+      },
+      onCancel: function(){
+        if(status) status.innerHTML = '';
+      },
+      onError: function(err){
+        if(status) status.innerHTML = '<div class="scaro-ticket-err">Si è verificato un problema con il pagamento. Riprova tra poco o scrivici.</div>';
+        console.error('PayPal error', err);
+      }
+    }).render(mount);
+  }).catch(function(){
+    mount.innerHTML = '<div class="scaro-ticket-err">Pagamento non ancora disponibile per questo evento.</div>';
+  });
+}
+function renderBiglietti(){
+  EVENTI_FUTURI.forEach(function(e){
+    var slot = document.getElementById('biglietto-' + e.id);
+    if(!slot) return;
+    if(Number(e.price) > 0){
+      slot.innerHTML = scaroTicketBoxHTML(e);
+      scaroRenderTicketButton(e);
+    } else {
+      slot.innerHTML = '';
+    }
+  });
+}
+
 function renderLocandine(){
   EVENTI_FUTURI.forEach(function(e){
     var slot = document.getElementById('locandina-'+e.id);
@@ -2569,6 +2674,7 @@ function renderEventi(){
 
   // futuri
   renderLocandine();
+  renderBiglietti();
   const fut = document.getElementById('evp-futuri');
   if(!EVENTI_FUTURI.length){
     fut.innerHTML = '<div class="evp-empty"><h3>Nessuna iniziativa in programma</h3>'
@@ -2577,9 +2683,10 @@ function renderEventi(){
   } else {
     fut.innerHTML = '<div class="evp-rail">' + EVENTI_FUTURI.map(function(e){
       var info = (e.info||[]).map(function(r){ return '<div>'+r+'</div>'; }).join('');
+      var priceBadge = (Number(e.price) > 0) ? '<div class="evp-price">🎟 ' + scaroFmtPrice(e.price) + '</div>' : '';
       return '<div class="flyer" style="cursor:pointer" onclick="showArticolo(\'evento-'+e.id+'\')">'
         + '<div class="flyer-top"><div><div class="flyer-day">'+e.day+'</div><div class="flyer-mon">'+e.mon+'</div></div><span class="evp-status">In arrivo</span></div>'
-        + '<div class="flyer-body"><div class="flyer-title">'+e.title+'</div><div class="flyer-info">'+info+'</div></div>'
+        + '<div class="flyer-body"><div class="flyer-title">'+e.title+'</div>' + priceBadge + '<div class="flyer-info">'+info+'</div></div>'
         + '<div class="evp-tear"></div>'
         + '<div class="flyer-foot"><a class="btn-rsvp" onclick="event.stopPropagation();showArticolo(\'evento-'+e.id+'\')">Info →</a><a class="btn-cal" onclick="event.stopPropagation();downloadICS(\''+e.id+'\')">+ Cal</a></div>'
         + '</div>';
