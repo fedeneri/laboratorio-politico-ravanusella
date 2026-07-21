@@ -2770,9 +2770,27 @@ function renderEventi(){
     var d = scaroEventDateObj(e);
     return !d || d >= now;
   });
+  // Eventi di EVENTI_FUTURI la cui data e' ormai passata: confluiscono
+  // automaticamente nell'archivio, cosi' non spariscono e non serve
+  // spostarli a mano quando passa la data.
+  var passatiAuto = EVENTI_FUTURI.filter(function(e){
+    if(e.hidden) return false;
+    var d = scaroEventDateObj(e);
+    return d && d < now;
+  }).map(function(e){
+    return {
+      day: e.day, mon: e.mon, yr: e.yr,
+      kind: e.kind || 'Evento',
+      title: e.title,
+      place: '📍 ' + (e.place || 'Scaro') + (e.time ? ' · ore ' + e.time : ''),
+      articoli: [],
+      id: e.id
+    };
+  });
+  var tuttiPassati = passatiAuto.concat(EVENTI_PASSATI);
   document.getElementById('evp-metarow').innerHTML =
       '<span><b>'+visibili.length+'</b> in arrivo</span>'
-    + '<span><b>'+EVENTI_PASSATI.length+'</b> nell\u2019archivio</span>'
+    + '<span><b>'+tuttiPassati.length+'</b> nell\u2019archivio</span>'
     + '<span>Oggi · '+oggiTxt+'</span>';
   document.getElementById('evp-oggi').textContent = 'Ora · '+oggiTxt;
 
@@ -2803,13 +2821,14 @@ function renderEventi(){
 
   // passati
   const pas = document.getElementById('evp-passati');
-  pas.innerHTML = '<div class="evp-pas-rail">' + EVENTI_PASSATI.map(function(e){
+  pas.innerHTML = '<div class="evp-pas-rail">' + tuttiPassati.map(function(e){
     var chips = (e.articoli && e.articoli.length)
       ? '<div class="evp-linked-label">Ne abbiamo scritto</div><div class="evp-chips">'
         + e.articoli.map(function(a){ return '<a class="evp-chip" onclick="openArticolo(\''+a.id+'\')"><span class="ic">'+a.ic+'</span><span class="tt">'+a.tt+'</span></a>'; }).join('')
         + '</div>'
-      : '<div class="evp-soon">Racconto in arrivo.</div>';
-    return '<div class="evp-ev">'
+      : (e.id ? '' : '<div class="evp-soon">Racconto in arrivo.</div>');
+    var clickAttr = e.id ? ' style="cursor:pointer" onclick="showArticolo(\'evento-'+e.id+'\')"' : '';
+    return '<div class="evp-ev"'+clickAttr+'>'
       + '<div class="evp-ev-date"><div class="evp-ev-day">'+e.day+'</div><div class="evp-ev-mon">'+e.mon+'</div><div class="evp-ev-yr">'+e.yr+'</div></div>'
       + '<div class="evp-ev-body"><div class="evp-ev-kr">'+e.kind+' · Passato</div><div class="evp-ev-title">'+e.title+'</div><div class="evp-ev-place">'+e.place+'</div>'+chips+'</div>'
       + '</div>';
