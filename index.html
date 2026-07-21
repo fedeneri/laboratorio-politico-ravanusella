@@ -2684,7 +2684,7 @@ function scaroRenderTicketButton(e){
             amount: (Number(tier.price)||0).toFixed(2)
           })
         }).then(function(r){ return r.json(); }).then(function(res){
-          if(!res.id) throw new Error('create-order-failed');
+          if(!res.id){ console.error('Scaro: creazione ordine PayPal fallita', res); throw new Error('create-order-failed'); }
           return res.id;
         });
       },

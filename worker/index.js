@@ -98,7 +98,13 @@ async function paypalCreateOrder(env, { eventId, tierId, amount }) {
       }]
     })
   });
-  if (!res.ok) throw new Error('paypal-create-order-failed');
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    const err = new Error('paypal-create-order-failed');
+    err.detail = detail;
+    err.status = res.status;
+    throw err;
+  }
   return res.json();
 }
 
@@ -112,7 +118,13 @@ async function paypalCaptureOrder(env, orderId) {
       'Content-Type': 'application/json'
     }
   });
-  if (!res.ok) throw new Error('paypal-capture-failed');
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    const err = new Error('paypal-capture-failed');
+    err.detail = detail;
+    err.status = res.status;
+    throw err;
+  }
   return res.json();
 }
 
@@ -152,7 +164,7 @@ async function handleCreateOrder(request, env, origin) {
 
   let order;
   try { order = await paypalCreateOrder(env, body); }
-  catch (e) { return json({ ok: false, error: 'paypal-create-failed' }, 502, origin); }
+  catch (e) { return json({ ok: false, error: 'paypal-create-failed', detail: e.detail || String(e) }, 502, origin); }
 
   return json({ id: order.id }, 200, origin);
 }
@@ -167,7 +179,7 @@ async function handleCaptureOrder(request, env, origin) {
 
   let capture;
   try { capture = await paypalCaptureOrder(env, body.orderID); }
-  catch (e) { return json({ ok: false, error: 'paypal-capture-failed' }, 502, origin); }
+  catch (e) { return json({ ok: false, error: 'paypal-capture-failed', detail: e.detail || String(e) }, 502, origin); }
 
   if (capture.status !== 'COMPLETED') return json({ ok: false, error: 'not-completed' }, 402, origin);
 
