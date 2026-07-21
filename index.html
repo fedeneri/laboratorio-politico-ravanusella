@@ -2669,46 +2669,47 @@ function scaroRenderTicketButton(e){
     paypal.Buttons({
       style: { layout:'horizontal', color:'gold', shape:'pill', label:'pay', height:45 },
       createOrder: function(data, actions){
+        if(!SCARO_API_BASE || SCARO_API_BASE.indexOf('INSERISCI_QUI') === 0){
+          if(status) status.innerHTML = '<div class="scaro-ticket-err">Pagamento non ancora disponibile per questo evento.</div>';
+          return Promise.reject(new Error('missing-api-base'));
+        }
         var idx = Number(mount.dataset.tier || 0);
         var tier = tiers[idx] || tiers[0];
-        return actions.order.create({
-          purchase_units: [{
-            description: ('Biglietto — ' + (tier.label ? tier.label + ' — ' : '') + (e.title || e.testo || 'Evento Scaro')).slice(0,127),
-            custom_id: e.id + (tier.id ? ':' + tier.id : ''),
-            amount: { currency_code: PAYPAL_CURRENCY, value: (Number(tier.price)||0).toFixed(2) }
-          }]
+        return fetch(SCARO_API_BASE + '/api/create-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            eventId: e.id,
+            tierId: tier.id || '',
+            amount: (Number(tier.price)||0).toFixed(2)
+          })
+        }).then(function(r){ return r.json(); }).then(function(res){
+          if(!res.id) throw new Error('create-order-failed');
+          return res.id;
         });
       },
       onApprove: function(data, actions){
-        return actions.order.capture().then(function(details){
-          var nome = (details.payer && details.payer.name && details.payer.name.given_name) || '';
-          mount.style.display = 'none';
-          if(status) status.innerHTML = '<div class="scaro-ticket-ok">✓ Pagamento ricevuto' + (nome ? ', grazie ' + escHTML(nome) : '') + '! Sto generando il tuo biglietto…</div>';
-          if(!SCARO_API_BASE || SCARO_API_BASE.indexOf('INSERISCI_QUI') === 0){
-            if(status) status.innerHTML = '<div class="scaro-ticket-ok">✓ Pagamento ricevuto' + (nome ? ', grazie ' + escHTML(nome) : '') + '!</div><div class="scaro-ticket-err" style="margin-top:8px">Generazione biglietto non ancora attiva: conserva questa ricevuta PayPal (ordine ' + escHTML(details.id) + ').</div>';
-            return;
+        mount.style.display = 'none';
+        if(status) status.innerHTML = '<div class="scaro-ticket-ok">✓ Pagamento approvato! Sto confermando e generando il tuo biglietto…</div>';
+        var idx = Number(mount.dataset.tier || 0);
+        var tier = tiers[idx] || tiers[0];
+        return fetch(SCARO_API_BASE + '/api/capture-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderID: data.orderID,
+            tierId: tier.id || '',
+            tierLabel: tier.label || '',
+            eventTitle: e.title || e.testo || ''
+          })
+        }).then(function(r){ return r.json(); }).then(function(res){
+          if(status && res.ok){
+            status.innerHTML = '<div class="scaro-ticket-ok">✓ Biglietto generato — codice <b>' + escHTML(res.code) + '</b>' + (res.emailSent ? '. Controlla la tua email (anche lo spam) per il QR da mostrare all\'ingresso.' : '. Non siamo riusciti a inviarlo via email: conserva questo codice.') + '</div>';
+          } else if(status){
+            status.innerHTML = '<div class="scaro-ticket-err">Pagamento approvato, ma la generazione del biglietto è fallita. Scrivici indicando questo riferimento ordine: ' + escHTML(data.orderID) + '</div>';
           }
-          var idx = Number(mount.dataset.tier || 0);
-          var tier = tiers[idx] || tiers[0];
-          return fetch(SCARO_API_BASE + '/api/verify-payment', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              orderId: details.id,
-              eventId: e.id,
-              tierId: tier.id || '',
-              tierLabel: tier.label || '',
-              eventTitle: e.title || e.testo || ''
-            })
-          }).then(function(r){ return r.json(); }).then(function(res){
-            if(status && res.ok){
-              status.innerHTML = '<div class="scaro-ticket-ok">✓ Biglietto generato — codice <b>' + escHTML(res.code) + '</b>' + (res.emailSent ? '. Controlla la tua email (anche lo spam) per il QR da mostrare all\'ingresso.' : '. Non siamo riusciti a inviarlo via email: conserva questo codice.') + '</div>';
-            } else if(status){
-              status.innerHTML = '<div class="scaro-ticket-err">Pagamento ricevuto, ma la generazione del biglietto è fallita. Scrivici indicando questo riferimento ordine: ' + escHTML(details.id) + '</div>';
-            }
-          }).catch(function(){
-            if(status) status.innerHTML = '<div class="scaro-ticket-err">Pagamento ricevuto, ma non siamo riusciti a contattare il server dei biglietti. Conserva questo riferimento ordine: ' + escHTML(details.id) + '</div>';
-          });
+        }).catch(function(){
+          if(status) status.innerHTML = '<div class="scaro-ticket-err">Pagamento approvato, ma non siamo riusciti a contattare il server dei biglietti. Conserva questo riferimento ordine: ' + escHTML(data.orderID) + '</div>';
         });
       },
       onCancel: function(){

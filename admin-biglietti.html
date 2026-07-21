@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Acquirenti biglietti — Scaro</title>
+<meta name="robots" content="noindex,nofollow">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:#F4E7DB;color:#164194;min-height:100vh;padding:24px}
+.wrap{max-width:960px;margin:0 auto}
+.card{border:3px solid #164194;background:#fff;padding:24px;margin-bottom:20px}
+h1{font-size:18px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:16px}
+label{display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 6px}
+input{width:100%;max-width:320px;font-family:inherit;font-size:15px;padding:10px;border:2px solid #164194}
+button{font-family:inherit;font-size:13px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:11px 20px;border:2px solid #164194;background:#E8D7BE;color:#164194;cursor:pointer;margin-top:12px}
+button:active{opacity:.8}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
+th,td{border:1px solid #164194;padding:8px 10px;text-align:left;vertical-align:top}
+th{background:#164194;color:#F4E7DB;font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+tr:nth-child(even){background:#F8EFE2}
+.used-yes{color:#1b5e20;font-weight:700}
+.used-no{color:#b3261e;font-weight:700}
+.status{margin-top:14px;font-size:14px}
+.bad{color:#b3261e;font-weight:600}
+.summary{font-family:monospace;font-size:13px;color:#444;margin-bottom:10px}
+.empty{color:#666;font-style:italic}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>Acquirenti biglietti — Scaro</h1>
+    <label for="key">Chiave admin (ADMIN_KEY)</label>
+    <input type="password" id="key" placeholder="quella impostata su Cloudflare">
+    <br>
+    <button id="load-btn">Carica elenco</button>
+    <div id="status" class="status"></div>
+  </div>
+  <div id="result"></div>
+</div>
+<script>
+const API_BASE = 'https://scaro-biglietti.scaro.workers.dev';
+
+document.getElementById('load-btn').onclick = function(){
+  var key = document.getElementById('key').value.trim();
+  var status = document.getElementById('status');
+  var result = document.getElementById('result');
+  if(!key){ status.innerHTML = '<span class="bad">Inserisci la chiave.</span>'; return; }
+  status.textContent = 'Caricamento…';
+  result.innerHTML = '';
+  fetch(API_BASE + '/api/tickets', { headers: { 'X-Admin-Key': key } })
+    .then(function(r){ return r.json().then(function(d){ return { ok:r.ok, data:d }; }); })
+    .then(function(res){
+      if(!res.ok || !res.data.ok){
+        status.innerHTML = '<span class="bad">' + (res.data && res.data.error === 'unauthorized' ? 'Chiave sbagliata (o ADMIN_KEY non impostata su Cloudflare).' : 'Errore nel caricamento.') + '</span>';
+        return;
+      }
+      status.textContent = '';
+      var tickets = res.data.tickets || [];
+      if(!tickets.length){
+        result.innerHTML = '<div class="card empty">Nessun biglietto venduto finora.</div>';
+        return;
+      }
+      var usedCount = tickets.filter(function(t){ return t.used; }).length;
+      var rows = tickets.map(function(t){
+        return '<tr>'
+          + '<td>' + (t.createdAt ? new Date(t.createdAt).toLocaleString('it-IT') : '') + '</td>'
+          + '<td>' + (t.eventTitle || t.eventId || '') + '</td>'
+          + '<td>' + (t.tierLabel || '') + '</td>'
+          + '<td>' + (t.buyerName || '') + '</td>'
+          + '<td>' + (t.buyerEmail || '') + '</td>'
+          + '<td>' + t.code + '</td>'
+          + '<td class="' + (t.used ? 'used-yes' : 'used-no') + '">' + (t.used ? '✓ Entrato' : '— Non ancora') + '</td>'
+          + '</tr>';
+      }).join('');
+      result.innerHTML = '<div class="card">'
+        + '<div class="summary">' + tickets.length + ' biglietti totali · ' + usedCount + ' già entrati</div>'
+        + '<div style="overflow-x:auto"><table><thead><tr>'
+        + '<th>Acquistato il</th><th>Evento</th><th>Tariffa</th><th>Nome</th><th>Email</th><th>Codice</th><th>Ingresso</th>'
+        + '</tr></thead><tbody>' + rows + '</tbody></table></div>'
+        + '</div>';
+    })
+    .catch(function(){ status.innerHTML = '<span class="bad">Errore di rete, riprova.</span>'; });
+};
+</script>
+</body>
+</html>

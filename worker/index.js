@@ -2,13 +2,15 @@
  * Scaro — backend biglietti (Cloudflare Worker)
  *
  * Cosa fa:
- *   1. Riceve l'ID di un ordine PayPal appena pagato dal sito e lo verifica
- *      DIRETTAMENTE con PayPal (server-to-server), cosa che il solo sito
- *      statico non può fare in modo sicuro.
- *   2. Se il pagamento è davvero completato, genera un codice biglietto
+ *   1. Crea l'ordine PayPal lato server (non nel browser: PayPal segnala la
+ *      creazione lato client come deprecata e, per alcuni account, causa
+ *      comportamenti instabili nel checkout).
+ *   2. Quando il cliente approva il pagamento, conferma (capture) l'ordine
+ *      DIRETTAMENTE con PayPal, server-to-server.
+ *   3. Se il pagamento è davvero completato, genera un codice biglietto
  *      univoco, lo salva in Cloudflare KV e manda un'email con QR al cliente
  *      (tramite Resend).
- *   3. Espone due endpoint per il check-in all'ingresso: uno per leggere lo
+ *   4. Espone due endpoint per il check-in all'ingresso: uno per leggere lo
  *      stato di un biglietto (senza consumarlo) e uno per marcarlo come usato.
  *
  * Variabili d'ambiente richieste (impostale con `wrangler secret put NOME`,
@@ -22,8 +24,11 @@
  *                                        serve solo per proteggere l'endpoint
  *                                        di test /api/test-ticket (non è
  *                                        collegato a nessun account esterno)
+ *   ADMIN_KEY                         -> valore a piacere, inventato da te;
+ *                                        protegge la lista degli acquirenti
+ *                                        (contiene email e nomi: non deve
+ *                                        essere pubblica)
  *
-
  * Richiede inoltre un KV namespace collegato con binding "TICKETS"
  * (vedi wrangler.toml).
  */
@@ -39,7 +44,7 @@ function corsHeaders(origin) {
   return {
     'Access-Control-Allow-Origin': allow,
     'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-Test-Key',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Test-Key, X-Admin-Key',
     'Vary': 'Origin'
   };
 }
@@ -76,13 +81,38 @@ async function paypalToken(env) {
   return data.access_token;
 }
 
-async function paypalGetOrder(env, orderId) {
+async function paypalCreateOrder(env, { eventId, tierId, amount }) {
   const base = env.PAYPAL_API_BASE || 'https://api-m.paypal.com';
   const token = await paypalToken(env);
-  const res = await fetch(base + '/v2/checkout/orders/' + encodeURIComponent(orderId), {
-    headers: { 'Authorization': 'Bearer ' + token }
+  const res = await fetch(base + '/v2/checkout/orders', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      intent: 'CAPTURE',
+      purchase_units: [{
+        custom_id: eventId + (tierId ? ':' + tierId : ''),
+        amount: { currency_code: 'EUR', value: amount }
+      }]
+    })
   });
-  if (!res.ok) throw new Error('paypal-order-not-found');
+  if (!res.ok) throw new Error('paypal-create-order-failed');
+  return res.json();
+}
+
+async function paypalCaptureOrder(env, orderId) {
+  const base = env.PAYPAL_API_BASE || 'https://api-m.paypal.com';
+  const token = await paypalToken(env);
+  const res = await fetch(base + '/v2/checkout/orders/' + encodeURIComponent(orderId) + '/capture', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Content-Type': 'application/json'
+    }
+  });
+  if (!res.ok) throw new Error('paypal-capture-failed');
   return res.json();
 }
 
@@ -113,29 +143,43 @@ async function sendTicketEmail(env, { to, code, eventTitle, tierLabel, verifyUrl
   return res.ok;
 }
 
-async function handleVerifyPayment(request, env, origin) {
+async function handleCreateOrder(request, env, origin) {
+  // L'ordine PayPal viene creato QUI, lato server, come raccomandato da
+  // PayPal stessa (la creazione lato browser e' deprecata e, per alcuni
+  // account, causa comportamenti instabili nel checkout).
   const body = await request.json().catch(() => null);
-  if (!body || !body.orderId || !body.eventId) return json({ ok: false, error: 'bad-request' }, 400, origin);
-
-  // Idempotenza: se questo ordine ha già generato un biglietto, restituisci quello.
-  const existing = await env.TICKETS.get('order:' + body.orderId);
-  if (existing) return json({ ok: true, code: existing, alreadyIssued: true }, 200, origin);
+  if (!body || !body.eventId || !body.amount) return json({ ok: false, error: 'bad-request' }, 400, origin);
 
   let order;
-  try { order = await paypalGetOrder(env, body.orderId); }
-  catch (e) { return json({ ok: false, error: 'paypal-verify-failed' }, 502, origin); }
+  try { order = await paypalCreateOrder(env, body); }
+  catch (e) { return json({ ok: false, error: 'paypal-create-failed' }, 502, origin); }
 
-  if (order.status !== 'COMPLETED') return json({ ok: false, error: 'not-completed' }, 402, origin);
+  return json({ id: order.id }, 200, origin);
+}
 
-  const unit = (order.purchase_units && order.purchase_units[0]) || {};
+async function handleCaptureOrder(request, env, origin) {
+  const body = await request.json().catch(() => null);
+  if (!body || !body.orderID) return json({ ok: false, error: 'bad-request' }, 400, origin);
+
+  // Idempotenza: se questo ordine ha già generato un biglietto, restituisci quello.
+  const existing = await env.TICKETS.get('order:' + body.orderID);
+  if (existing) return json({ ok: true, code: existing, alreadyIssued: true }, 200, origin);
+
+  let capture;
+  try { capture = await paypalCaptureOrder(env, body.orderID); }
+  catch (e) { return json({ ok: false, error: 'paypal-capture-failed' }, 502, origin); }
+
+  if (capture.status !== 'COMPLETED') return json({ ok: false, error: 'not-completed' }, 402, origin);
+
+  const unit = (capture.purchase_units && capture.purchase_units[0]) || {};
   const paidCustomId = unit.custom_id || '';
-  if (paidCustomId.indexOf(body.eventId) !== 0) return json({ ok: false, error: 'event-mismatch' }, 400, origin);
+  const eventId = paidCustomId.split(':')[0];
 
   const code = randomCode();
-  const payer = order.payer || {};
+  const payer = capture.payer || {};
   const record = {
-    orderId: body.orderId,
-    eventId: body.eventId,
+    orderId: body.orderID,
+    eventId: eventId,
     tierId: body.tierId || '',
     tierLabel: body.tierLabel || '',
     eventTitle: body.eventTitle || '',
@@ -146,7 +190,7 @@ async function handleVerifyPayment(request, env, origin) {
     usedAt: null
   };
   await env.TICKETS.put('ticket:' + code, JSON.stringify(record));
-  await env.TICKETS.put('order:' + body.orderId, code);
+  await env.TICKETS.put('order:' + body.orderID, code);
 
   let emailSent = false;
   if (record.buyerEmail) {
@@ -205,6 +249,34 @@ async function handleTestTicket(request, env, origin) {
   return json({ ok: true, code: code, emailSent: emailSent }, 200, origin);
 }
 
+async function handleListTickets(request, env, origin) {
+  // Elenco di chi ha comprato un biglietto. Contiene email e nomi, quindi
+  // e' protetto da una chiave (ADMIN_KEY) che non deve mai finire nel
+  // codice del sito, solo su Cloudflare.
+  const key = request.headers.get('X-Admin-Key') || '';
+  if (!env.ADMIN_KEY || key !== env.ADMIN_KEY) return json({ ok: false, error: 'unauthorized' }, 401, origin);
+
+  const list = await env.TICKETS.list({ prefix: 'ticket:' });
+  const tickets = await Promise.all(list.keys.map(async (k) => {
+    const raw = await env.TICKETS.get(k.name);
+    if (!raw) return null;
+    const t = JSON.parse(raw);
+    return {
+      code: k.name.replace(/^ticket:/, ''),
+      eventId: t.eventId,
+      eventTitle: t.eventTitle,
+      tierLabel: t.tierLabel,
+      buyerName: t.buyerName,
+      buyerEmail: t.buyerEmail,
+      used: t.used,
+      usedAt: t.usedAt,
+      createdAt: t.createdAt
+    };
+  }));
+  const cleaned = tickets.filter(Boolean).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  return json({ ok: true, tickets: cleaned }, 200, origin);
+}
+
 async function handleTicketStatus(env, origin, code) {
   const raw = await env.TICKETS.get('ticket:' + code);
   if (!raw) return json({ ok: false, error: 'not-found' }, 404, origin);
@@ -230,11 +302,17 @@ export default {
 
     if (request.method === 'OPTIONS') return new Response(null, { headers: corsHeaders(origin) });
 
-    if (url.pathname === '/api/verify-payment' && request.method === 'POST') {
-      return handleVerifyPayment(request, env, origin);
+    if (url.pathname === '/api/create-order' && request.method === 'POST') {
+      return handleCreateOrder(request, env, origin);
+    }
+    if (url.pathname === '/api/capture-order' && request.method === 'POST') {
+      return handleCaptureOrder(request, env, origin);
     }
     if (url.pathname === '/api/test-ticket' && request.method === 'POST') {
       return handleTestTicket(request, env, origin);
+    }
+    if (url.pathname === '/api/tickets' && request.method === 'GET') {
+      return handleListTickets(request, env, origin);
     }
     const statusMatch = url.pathname.match(/^\/api\/ticket\/([A-Z0-9-]+)$/i);
     if (statusMatch && request.method === 'GET') {
