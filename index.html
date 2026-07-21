@@ -1657,19 +1657,11 @@ const EVENTI_FUTURI = [
     flyer:'content/assets/locandina-cabaret-barbecue-03-08.jpg',
     tiers:[
       { id:'sedia', label:'Posto a sedere', price:10 },
-      { id:'combo', label:'Sedia + panino + salsiccia + birra ghiacciata', price:15.99 }
+      { id:'combo', label:'Sedia + panino + salsiccia + birra ghiacciata', price:15.99 },
+      { id:'test', label:'⚠️ TEST — non selezionare (solo prova)', price:0.01 }
     ],
     ticketNote:'Posti limitati',
     ics:{ dtstart:'20260803T183000Z', dtend:'20260803T213000Z', summary:'Cabaret & Barbecue — Stefano Chiodaroli', location:'Teatrino dello Scaro Cafè, Agrigento', description:'Cabaret con Stefano Chiodaroli (da Zelig) e Samsound Music Show. Un evento Pesce Cane.' } },
-  { id:'test-pagamento', dynamic:true, hidden:false, day:'21', mon:'Luglio', yr:'2026', kind:'Test',
-    title:'Test pagamento biglietti (uso interno)',
-    place:'Scaro', time:'',
-    info:[],
-    description:'Pagina interna per verificare il sistema di biglietti PayPal + QR. Non è un evento reale.',
-    body:'Pagina di prova per verificare che il pagamento, la generazione del biglietto e l\'email col QR funzionino correttamente prima di usare il sistema su un evento vero.',
-    tiers:[ { id:'test', label:'Biglietto di prova', price:0.01 } ],
-    ticketNote:'Solo per test interni — non condividere questo link'
-  },
 ];
 
 /* -- EVENTI PASSATI (archivio) -- */
