@@ -1758,6 +1758,15 @@ function scaroFindItem(id){
 }
 function scaroArticlePath(urlId){ return '/articolo/' + urlId + '.html'; }
 function scaroArticleShareUrl(urlId){ return SCARO_BASE_URL + scaroArticlePath(urlId); }
+function scaroNavigateTo(path, state, opts){
+  opts = opts || {};
+  if(opts.silent) return;
+  try {
+    var current = location.pathname + location.search;
+    if(opts.replace || current === path) history.replaceState(state, '', path);
+    else history.pushState(state, '', path);
+  } catch(e){ /* pushState non disponibile (es. file://): ignora */ }
+}
 function scaroApplyArticleMeta(id, opts){
   opts = opts || {};
   var found = scaroFindItem(id);
@@ -1768,13 +1777,7 @@ function scaroApplyArticleMeta(id, opts){
   var desc = scaroPlainText(rawDesc) || scaroDefaultMeta().description;
   scaroSetMeta({ title:title, description:desc, image:scaroItemImage(it), url:scaroArticleShareUrl(found.urlId) });
   SCARO_CURRENT_ARTICLE_ID = id;
-  if(!opts.silent){
-    try {
-      var path = scaroArticlePath(found.urlId);
-      if(opts.replace) history.replaceState({ scaroArticle:id }, '', path);
-      else history.pushState({ scaroArticle:id }, '', path);
-    } catch(e){ /* pushState non disponibile (es. file://): ignora */ }
-  }
+  scaroNavigateTo(scaroArticlePath(found.urlId), { scaroArticle:id }, opts);
 }
 function scaroParseArticleIdFromLocation(){
   try {
@@ -1783,6 +1786,41 @@ function scaroParseArticleIdFromLocation(){
   } catch(e){}
   var m = location.pathname.match(/\/articolo\/([^/]+?)(?:\.html)?\/?$/);
   return m ? decodeURIComponent(m[1]) : null;
+}
+
+/* -- CONDIVISIONE: URL reali anche per le sezioni principali del sito -- */
+const SCARO_PAGES = {
+  home:         { slug:'',          title:'Scaro — News',        description:'Le ultime pubblicazioni, talk e analisi dalla comunità di Scaro.' },
+  albopop:      { slug:'albopop',   title:'AlboPOP — Scaro',     description:'L’Albo Pretorio del Comune di Agrigento, reso leggibile e monitorato civicamente.' },
+  consiglio:    { slug:'consiglio', title:'Consiglio Comunale — Scaro', description:'Chi siede in Consiglio Comunale ad Agrigento: liste, voti e schieramenti.' },
+  podcast:      { slug:'podcast',   title:'Podcast — Scaro',     description:'Gli episodi del podcast di Scaro.' },
+  eventi:       { slug:'eventi',    title:'Eventi — Scaro',      description:'Gli appuntamenti in programma e l’archivio degli eventi passati di Scaro.' },
+  segnalazioni: { slug:'proposte',  title:'Proposte — Scaro',    description:'Segnala un problema o proponi un’iniziativa alla comunità di Scaro.' }
+};
+function scaroPagePath(name){
+  var p = SCARO_PAGES[name];
+  if(!p) return '/';
+  return p.slug ? '/?p=' + p.slug : '/';
+}
+function scaroApplyPageMeta(name, opts){
+  var p = SCARO_PAGES[name];
+  if(!p) return;
+  SCARO_CURRENT_ARTICLE_ID = null;
+  var meta = name === 'home' ? scaroDefaultMeta() : {
+    title: p.title,
+    description: p.description,
+    image: scaroDefaultMeta().image,
+    url: SCARO_BASE_URL + scaroPagePath(name)
+  };
+  scaroSetMeta(meta);
+  scaroNavigateTo(scaroPagePath(name), { scaroPage:name }, opts);
+}
+function scaroParsePageFromLocation(){
+  var p;
+  try { p = new URLSearchParams(location.search).get('p'); } catch(e){ p = null; }
+  if(!p) return null;
+  for(var name in SCARO_PAGES){ if(SCARO_PAGES[name].slug === p) return name; }
+  return null;
 }
 function scaroShareArticle(){
   var id = SCARO_CURRENT_ARTICLE_ID;
@@ -1811,8 +1849,9 @@ function scaroShareArticle(){
 }
 window.addEventListener('popstate', function(){
   var id = scaroParseArticleIdFromLocation();
-  if(id){ showArticolo(id, { silent:true }); }
-  else { scaroSetMeta(scaroDefaultMeta()); }
+  if(id){ showArticolo(id, { silent:true }); return; }
+  var pageName = scaroParsePageFromLocation();
+  showPage(pageName || 'home', { silent:true });
 });
 
 /* -- CONSIGLIO COMUNALE - per la foto aggiungi  foto:'assets/foto/nome.jpg' -- */
@@ -2348,7 +2387,7 @@ function showArticolo(id, opts) {
 }
 
 /* ===================== [4] NAVIGAZIONE E INTERAZIONI ===================== */
-function showPage(name) {
+function showPage(name, opts) {
   document.querySelectorAll(".page").forEach(p => {
     p.classList.remove("active");
     p.style.animation = "none";
@@ -2373,11 +2412,7 @@ function showPage(name) {
     if(name === 'consiglio' && consiglieriAttiva){ interro.classList.add('shown'); }
     else { interro.classList.remove('shown'); if(typeof rilascia==='function') rilascia(); }
   }
-  if(/^\/articolo\//.test(location.pathname)){
-    SCARO_CURRENT_ARTICLE_ID = null;
-    scaroSetMeta(scaroDefaultMeta());
-    try { history.pushState({}, '', '/'); } catch(e){}
-  }
+  if(SCARO_PAGES[name]) scaroApplyPageMeta(name, opts);
 }
 
 function switchTab(tab, btn) {
@@ -2665,7 +2700,9 @@ fetchAtti();
 // Se l'URL punta a un articolo/evento specifico (?a=ID oppure /articolo/ID.html), aprilo subito
 (function(){
   var id = scaroParseArticleIdFromLocation();
-  if(id) showArticolo(id, { replace:true });
+  if(id){ showArticolo(id, { replace:true }); return; }
+  var pageName = scaroParsePageFromLocation();
+  if(pageName && pageName !== 'home') showPage(pageName, { replace:true });
 })();
 
 // Responsive quadranti
