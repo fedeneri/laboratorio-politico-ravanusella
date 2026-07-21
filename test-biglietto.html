@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test biglietto (uso interno) — Scaro</title>
+<meta name="robots" content="noindex,nofollow">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:#F4E7DB;color:#164194;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.card{max-width:440px;width:100%;border:3px solid #164194;background:#fff;padding:28px}
+h1{font-size:15px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px}
+p.hint{font-size:13px;color:#666;margin-bottom:20px;line-height:1.5}
+label{display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 6px}
+input,select{width:100%;font-family:inherit;font-size:15px;padding:11px;border:2px solid #164194;margin-bottom:4px}
+button{font-family:inherit;font-size:14px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:14px 22px;border:2px solid #164194;background:#E8D7BE;color:#164194;cursor:pointer;width:100%;margin-top:16px}
+button:active{opacity:.8}
+.status{margin-top:18px;padding:14px;border:2px solid #164194;font-size:14px;line-height:1.5}
+.ok{background:#d4f4dd;border-color:#1b5e20;color:#1b5e20}
+.bad{background:#fbdcdc;border-color:#b3261e;color:#b3261e}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Test biglietto — Scaro (uso interno)</h1>
+  <p class="hint">Genera un biglietto vero SALTANDO PayPal, per verificare che email, QR e verifica all'ingresso funzionino. Non è collegato a nessun pagamento reale.</p>
+
+  <label for="key">Chiave di test (TEST_KEY)</label>
+  <input type="password" id="key" placeholder="quella impostata su Cloudflare">
+
+  <label for="email">La tua email (per ricevere il biglietto finto)</label>
+  <input type="email" id="email" placeholder="tuamail@esempio.it">
+
+  <button id="go-btn">Genera biglietto di prova</button>
+  <div id="result"></div>
+</div>
+<script>
+const API_BASE = 'https://scaro-biglietti.scaro.workers.dev';
+
+document.getElementById('go-btn').onclick = function(){
+  var key = document.getElementById('key').value.trim();
+  var email = document.getElementById('email').value.trim();
+  var result = document.getElementById('result');
+  if(!key || !email){
+    result.innerHTML = '<div class="status bad">Compila chiave ed email.</div>';
+    return;
+  }
+  result.innerHTML = 'Generazione in corso…';
+  fetch(API_BASE + '/api/test-ticket', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Test-Key': key },
+    body: JSON.stringify({
+      eventId: 'cabaret-barbecue',
+      tierId: 'test',
+      tierLabel: 'Biglietto di prova',
+      eventTitle: 'Cabaret & Barbecue — Stefano Chiodaroli',
+      buyerEmail: email
+    })
+  }).then(function(r){ return r.json().then(function(d){ return { ok:r.ok, data:d }; }); })
+    .then(function(res){
+      if(res.ok && res.data.ok){
+        result.innerHTML = '<div class="status ok">✓ Biglietto generato: <b>' + res.data.code + '</b>'
+          + (res.data.emailSent ? '<br>Email inviata a ' + email + ' (controlla anche lo spam).' : '<br>Email NON inviata — controlla il RESEND_API_KEY su Cloudflare.')
+          + '<br><br><a href="verifica.html?c=' + res.data.code + '" target="_blank">Apri la verifica di questo biglietto →</a></div>';
+      } else if(res.data && res.data.error === 'unauthorized'){
+        result.innerHTML = '<div class="status bad">Chiave sbagliata (o TEST_KEY non impostata su Cloudflare).</div>';
+      } else {
+        result.innerHTML = '<div class="status bad">Errore: ' + ((res.data && res.data.error) || 'sconosciuto') + '</div>';
+      }
+    })
+    .catch(function(){ result.innerHTML = '<div class="status bad">Errore di rete, riprova.</div>'; });
+};
+</script>
+</body>
+</html>

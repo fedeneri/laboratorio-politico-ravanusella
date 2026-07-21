@@ -18,7 +18,12 @@
  *   RESEND_FROM   (facoltativa)       -> es. "Scaro <biglietti@scaro.it>"
  *   PAYPAL_API_BASE (facoltativa)     -> default produzione; per test usa
  *                                        https://api-m.sandbox.paypal.com
+ *   TEST_KEY                          -> valore a piacere, inventato da te;
+ *                                        serve solo per proteggere l'endpoint
+ *                                        di test /api/test-ticket (non è
+ *                                        collegato a nessun account esterno)
  *
+
  * Richiede inoltre un KV namespace collegato con binding "TICKETS"
  * (vedi wrangler.toml).
  */
@@ -159,6 +164,47 @@ async function handleVerifyPayment(request, env, origin) {
   return json({ ok: true, code: code, emailSent: emailSent }, 200, origin);
 }
 
+async function handleTestTicket(request, env, origin) {
+  // Genera un biglietto vero SALTANDO PayPal, per verificare che il resto
+  // della catena (KV, email, QR, check-in) funzioni. Protetto da una chiave
+  // condivisa (TEST_KEY) che non deve mai finire nel codice del sito.
+  const key = request.headers.get('X-Test-Key') || '';
+  if (!env.TEST_KEY || key !== env.TEST_KEY) return json({ ok: false, error: 'unauthorized' }, 401, origin);
+
+  const body = await request.json().catch(() => null);
+  if (!body || !body.eventId) return json({ ok: false, error: 'bad-request' }, 400, origin);
+
+  const code = randomCode();
+  const record = {
+    orderId: 'TEST-' + code,
+    eventId: body.eventId,
+    tierId: body.tierId || 'test',
+    tierLabel: (body.tierLabel || 'Biglietto di prova') + ' (FINTO — nessun pagamento reale)',
+    eventTitle: body.eventTitle || '',
+    buyerEmail: body.buyerEmail || '',
+    buyerName: body.buyerName || '',
+    used: false,
+    createdAt: new Date().toISOString(),
+    usedAt: null
+  };
+  await env.TICKETS.put('ticket:' + code, JSON.stringify(record));
+
+  let emailSent = false;
+  if (record.buyerEmail) {
+    try {
+      emailSent = await sendTicketEmail(env, {
+        to: record.buyerEmail,
+        code: code,
+        eventTitle: record.eventTitle,
+        tierLabel: record.tierLabel,
+        verifyUrl: 'https://scaro.it/verifica.html?c=' + code
+      });
+    } catch (e) { /* il biglietto resta valido anche se l'invio email fallisce */ }
+  }
+
+  return json({ ok: true, code: code, emailSent: emailSent }, 200, origin);
+}
+
 async function handleTicketStatus(env, origin, code) {
   const raw = await env.TICKETS.get('ticket:' + code);
   if (!raw) return json({ ok: false, error: 'not-found' }, 404, origin);
@@ -186,6 +232,9 @@ export default {
 
     if (url.pathname === '/api/verify-payment' && request.method === 'POST') {
       return handleVerifyPayment(request, env, origin);
+    }
+    if (url.pathname === '/api/test-ticket' && request.method === 'POST') {
+      return handleTestTicket(request, env, origin);
     }
     const statusMatch = url.pathname.match(/^\/api\/ticket\/([A-Z0-9-]+)$/i);
     if (statusMatch && request.method === 'GET') {
