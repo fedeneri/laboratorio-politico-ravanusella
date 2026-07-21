@@ -1292,6 +1292,7 @@ footer{background:var(--black);color:var(--white);padding:64px 60px 40px}
     <h1 class="articolo-title" id="dyn-title"></h1>
     <div class="articolo-meta" id="dyn-meta"></div>
     <div style="margin:18px 0 8px"><button class="btn-secondary scaro-share-btn" onclick="scaroShareArticle()">↗ Condividi</button></div>
+    <div id="dyn-image"></div>
     <p id="dyn-desc" style="font-size:20px;line-height:1.5;margin:28px 0;color:#333"></p>
     <div id="dyn-body" style="font-size:17px;line-height:1.75;color:#222"></div>
     <div id="dyn-ticket"></div>
@@ -1434,6 +1435,12 @@ footer{background:var(--black);color:var(--white);padding:64px 60px 40px}
 .scaro-ticket-price{font-family:var(--font-display);font-size:34px;font-weight:900;color:var(--blue);line-height:1}
 .scaro-ticket-note{font-size:13px;color:#555;max-width:220px;text-align:right;line-height:1.4}
 .scaro-ticket-btns{min-height:45px}
+.scaro-tier-list{display:flex;flex-direction:column;gap:10px}
+.scaro-tier-opt{display:flex;align-items:center;gap:12px;border:2px solid var(--black);padding:12px 14px;cursor:pointer;transition:background .15s}
+.scaro-tier-opt:hover{background:var(--gray-light)}
+.scaro-tier-opt input{accent-color:var(--blue);width:16px;height:16px;flex-shrink:0}
+.scaro-tier-label{flex:1;font-size:14px;line-height:1.3}
+.scaro-tier-price{font-family:var(--font-mono);font-weight:700;color:var(--blue);white-space:nowrap}
 .scaro-ticket-status{margin-top:14px;font-size:14px;line-height:1.5}
 .scaro-ticket-ok{color:#1b5e20;font-weight:600}
 .scaro-ticket-err{color:#b3261e;font-weight:600}
@@ -1637,6 +1644,20 @@ const EVENTI_FUTURI = [
     flyer:'', /* ← inserire qui l'URL della locandina */
     price:0, /* ← se l'evento è a pagamento, metti qui il prezzo in euro (es. 5), altrimenti lascia 0 */
     ics:{ dtstart:'20260718T173000Z', dtend:'20260718T203000Z', summary:'Non restiamo senza — PattoXrestare', location:'Scaro Cafè, Agrigento', description:'Presentazione della campagna PattoXrestare: una piattaforma di proposte concrete per una Sicilia dove restare è una scelta possibile.' } },
+  { id:'cabaret-barbecue', dynamic:true, day:'03', mon:'Agosto', yr:'2026', kind:'Cabaret',
+    title:'Cabaret & Barbecue — Stefano Chiodaroli',
+    place:'Teatrino dello Scaro Cafè',
+    time:'20:30', /* ← orario non indicato in locandina: verifica e correggi se necessario */
+    info:['🕖 Ore 20:30 (da confermare)', '📍 Teatrino dello Scaro Cafè', 'Con Stefano Chiodaroli (da Zelig) e Samsound Music Show'],
+    description:'Cabaret con Stefano Chiodaroli (da Zelig) e a seguire Samsound Music Show. Un evento Pesce Cane. Posti limitati.',
+    body:'Una serata di cabaret e barbecue al Teatrino dello Scaro Cafè: sul palco Stefano Chiodaroli, comico visto a Zelig. A seguire, musica dal vivo con il Samsound Music Show.\n\nPosti limitati.\n\nUn evento a cura di Pesce Cane.',
+    flyer:'content/assets/locandina-cabaret-barbecue-03-08.jpg',
+    tiers:[
+      { id:'sedia', label:'Posto a sedere', price:10 },
+      { id:'combo', label:'Sedia + panino + salsiccia + birra ghiacciata', price:15.99 }
+    ],
+    ticketNote:'Posti limitati',
+    ics:{ dtstart:'20260803T183000Z', dtend:'20260803T213000Z', summary:'Cabaret & Barbecue — Stefano Chiodaroli', location:'Teatrino dello Scaro Cafè, Agrigento', description:'Cabaret con Stefano Chiodaroli (da Zelig) e Samsound Music Show. Un evento Pesce Cane.' } },
 ];
 
 /* -- EVENTI PASSATI (archivio) -- */
@@ -1718,6 +1739,7 @@ function scaroApplyContent(){
       flyer: e.flyer || '',
       price: Number(e.price || e.prezzo) || 0,
       ticketNote: e.ticketNote || e.notaBiglietto || '',
+      tiers: Array.isArray(e.tiers) ? e.tiers : null,
       ics: e.ics || null
     });
   });
@@ -2393,10 +2415,15 @@ function renderDynamicArticle(id, opts){
     : [it.autore ? 'di ' + it.autore : '', it.data || '', it.dur || ''].filter(Boolean);
   document.getElementById("dyn-meta").innerHTML = meta.map(function(x){ return '<span>'+escHTML(x)+'</span>'; }).join('<span>·</span>');
   document.getElementById("dyn-desc").textContent = isEvent ? (it.description || (it.info || []).join(' · ')) : (it.desc || '');
+  var imgSlot = document.getElementById("dyn-image");
+  if(imgSlot){
+    var flyerImg = it.flyer || it.img;
+    imgSlot.innerHTML = flyerImg ? '<img src="'+flyerImg+'" alt="Locandina" style="width:100%;max-width:460px;border:2px solid var(--black);margin:20px 0;display:block;">' : '';
+  }
   document.getElementById("dyn-body").innerHTML = scaroArticleHTML(it.body || it.description || it.desc || '', it.bibliografia || it.bibliography || '');
   var ticketSlot = document.getElementById("dyn-ticket");
   if(ticketSlot){
-    if(isEvent && Number(it.price) > 0){ ticketSlot.innerHTML = scaroTicketBoxHTML(it); scaroRenderTicketButton(it); }
+    if(isEvent && scaroTiersOf(it).length){ ticketSlot.innerHTML = scaroTicketBoxHTML(it); scaroRenderTicketButton(it); }
     else { ticketSlot.innerHTML = ''; }
   }
   window.scrollTo(0,0);
@@ -2588,13 +2615,33 @@ function scaroLoadPaypalSdk(){
   });
   return scaroPaypalSdkPromise;
 }
+function scaroTiersOf(e){
+  if(Array.isArray(e.tiers) && e.tiers.length) return e.tiers;
+  return (Number(e.price) > 0) ? [{ id:'biglietto', label:'Biglietto', price:Number(e.price) }] : [];
+}
+function scaroSelectTier(id, input){
+  var mount = document.getElementById('paypal-btn-' + id);
+  if(mount) mount.dataset.tier = input.value;
+}
 function scaroTicketBoxHTML(e){
+  var tiers = scaroTiersOf(e);
+  var single = tiers.length <= 1;
+  var priceOrList = single
+    ? '<div class="scaro-ticket-price">' + scaroFmtPrice(tiers[0] ? tiers[0].price : 0) + '</div>'
+    : '<div class="scaro-tier-list">' + tiers.map(function(t, i){
+        return '<label class="scaro-tier-opt">'
+          + '<input type="radio" name="scaro-tier-' + e.id + '" value="' + i + '"' + (i===0?' checked':'') + ' onchange="scaroSelectTier(\'' + e.id + '\', this)">'
+          + '<span class="scaro-tier-label">' + escHTML(t.label) + '</span>'
+          + '<span class="scaro-tier-price">' + scaroFmtPrice(t.price) + '</span>'
+          + '</label>';
+      }).join('') + '</div>';
   return '<div class="scaro-ticket-box">'
     + '<div class="scaro-ticket-head">'
-    +   '<div><div class="scaro-ticket-label">Biglietto</div><div class="scaro-ticket-price">' + scaroFmtPrice(e.price) + '</div></div>'
+    +   '<div class="scaro-ticket-label">Biglietto</div>'
     +   (e.ticketNote ? '<div class="scaro-ticket-note">' + escHTML(e.ticketNote) + '</div>' : '')
     + '</div>'
-    + '<div id="paypal-btn-' + e.id + '" class="scaro-ticket-btns"></div>'
+    + priceOrList
+    + '<div id="paypal-btn-' + e.id + '" class="scaro-ticket-btns" data-tier="0" style="margin-top:16px"></div>'
     + '<div id="paypal-status-' + e.id + '" class="scaro-ticket-status"></div>'
     + '</div>';
 }
@@ -2602,17 +2649,20 @@ function scaroRenderTicketButton(e){
   var mount = document.getElementById('paypal-btn-' + e.id);
   if(!mount) return;
   var status = document.getElementById('paypal-status-' + e.id);
+  var tiers = scaroTiersOf(e);
   mount.innerHTML = '<div style="font-family:var(--font-mono);font-size:12px;color:#888;">Caricamento pagamento…</div>';
   scaroLoadPaypalSdk().then(function(paypal){
     mount.innerHTML = '';
     paypal.Buttons({
       style: { layout:'horizontal', color:'gold', shape:'pill', label:'pay', height:45 },
       createOrder: function(data, actions){
+        var idx = Number(mount.dataset.tier || 0);
+        var tier = tiers[idx] || tiers[0];
         return actions.order.create({
           purchase_units: [{
-            description: ('Biglietto — ' + (e.title || e.testo || 'Evento Scaro')).slice(0,127),
-            custom_id: e.id,
-            amount: { currency_code: PAYPAL_CURRENCY, value: (Number(e.price)||0).toFixed(2) }
+            description: ('Biglietto — ' + (tier.label ? tier.label + ' — ' : '') + (e.title || e.testo || 'Evento Scaro')).slice(0,127),
+            custom_id: e.id + (tier.id ? ':' + tier.id : ''),
+            amount: { currency_code: PAYPAL_CURRENCY, value: (Number(tier.price)||0).toFixed(2) }
           }]
         });
       },
@@ -2639,7 +2689,7 @@ function renderBiglietti(){
   EVENTI_FUTURI.forEach(function(e){
     var slot = document.getElementById('biglietto-' + e.id);
     if(!slot) return;
-    if(Number(e.price) > 0){
+    if(scaroTiersOf(e).length){
       slot.innerHTML = scaroTicketBoxHTML(e);
       scaroRenderTicketButton(e);
     } else {
