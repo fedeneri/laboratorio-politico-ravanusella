@@ -1644,7 +1644,7 @@ const EVENTI_FUTURI = [
     flyer:'', /* ← inserire qui l'URL della locandina */
     price:0, /* ← se l'evento è a pagamento, metti qui il prezzo in euro (es. 5), altrimenti lascia 0 */
     ics:{ dtstart:'20260718T173000Z', dtend:'20260718T203000Z', summary:'Non restiamo senza — PattoXrestare', location:'Scaro Cafè, Agrigento', description:'Presentazione della campagna PattoXrestare: una piattaforma di proposte concrete per una Sicilia dove restare è una scelta possibile.' } },
-  { id:'cabaret-barbecue', dynamic:true, day:'03', mon:'Agosto', yr:'2026', kind:'Cabaret',
+  { id:'cabaret-barbecue', dynamic:true, featured:true, day:'03', mon:'Agosto', yr:'2026', kind:'Cabaret',
     title:'Cabaret & Barbecue — Stefano Chiodaroli',
     place:'Teatrino dello Scaro Cafè',
     time:'20:30', /* ← orario non indicato in locandina: verifica e correggi se necessario */
@@ -1658,6 +1658,15 @@ const EVENTI_FUTURI = [
     ],
     ticketNote:'Posti limitati',
     ics:{ dtstart:'20260803T183000Z', dtend:'20260803T213000Z', summary:'Cabaret & Barbecue — Stefano Chiodaroli', location:'Teatrino dello Scaro Cafè, Agrigento', description:'Cabaret con Stefano Chiodaroli (da Zelig) e Samsound Music Show. Un evento Pesce Cane.' } },
+  { id:'test-pagamento', dynamic:true, hidden:true, day:'21', mon:'Luglio', yr:'2026', kind:'Test',
+    title:'Test pagamento biglietti (uso interno)',
+    place:'Scaro', time:'',
+    info:[],
+    description:'Pagina interna per verificare il sistema di biglietti PayPal + QR. Non è un evento reale.',
+    body:'Pagina di prova per verificare che il pagamento, la generazione del biglietto e l\'email col QR funzionino correttamente prima di usare il sistema su un evento vero.',
+    tiers:[ { id:'test', label:'Biglietto di prova', price:0.01 } ],
+    ticketNote:'Solo per test interni — non condividere questo link'
+  },
 ];
 
 /* -- EVENTI PASSATI (archivio) -- */
@@ -2745,26 +2754,33 @@ function renderLocandine(){
 
 function renderEventi(){
   // meta
+  var oggi = new Date();
+  var oggiTxt = oggi.getDate() + ' ' + SCARO_MONTHS[oggi.getMonth()] + ' ' + oggi.getFullYear();
+  var visibili = EVENTI_FUTURI.filter(function(e){ return !e.hidden; });
   document.getElementById('evp-metarow').innerHTML =
-      '<span><b>'+EVENTI_FUTURI.length+'</b> in arrivo</span>'
+      '<span><b>'+visibili.length+'</b> in arrivo</span>'
     + '<span><b>'+EVENTI_PASSATI.length+'</b> nell\u2019archivio</span>'
-    + '<span>Oggi · 23 giugno 2026</span>';
-  document.getElementById('evp-oggi').textContent = 'Ora · 23 giugno 2026';
+    + '<span>Oggi · '+oggiTxt+'</span>';
+  document.getElementById('evp-oggi').textContent = 'Ora · '+oggiTxt;
 
   // futuri
   renderLocandine();
   renderBiglietti();
   const fut = document.getElementById('evp-futuri');
-  if(!EVENTI_FUTURI.length){
+  if(!visibili.length){
     fut.innerHTML = '<div class="evp-empty"><h3>Nessuna iniziativa in programma</h3>'
       + '<p>Il prossimo appuntamento è in preparazione. Hai un\u2019idea per Scaro?</p>'
       + '<a onclick="showPage(\'segnalazioni\')">Proponi un\u2019iniziativa →</a></div>';
   } else {
-    fut.innerHTML = '<div class="evp-rail">' + EVENTI_FUTURI.map(function(e){
+    fut.innerHTML = '<div class="evp-rail">' + visibili.map(function(e){
       var info = (e.info||[]).map(function(r){ return '<div>'+r+'</div>'; }).join('');
-      var priceBadge = (Number(e.price) > 0) ? '<div class="evp-price">🎟 ' + scaroFmtPrice(e.price) + '</div>' : '';
-      return '<div class="flyer" style="cursor:pointer" onclick="showArticolo(\'evento-'+e.id+'\')">'
-        + '<div class="flyer-top"><div><div class="flyer-day">'+e.day+'</div><div class="flyer-mon">'+e.mon+'</div></div><span class="evp-status">In arrivo</span></div>'
+      var tiers = scaroTiersOf(e);
+      var priceBadge = tiers.length ? '<div class="evp-price">🎟 ' + (tiers.length > 1 ? 'da ' : '') + scaroFmtPrice(Math.min.apply(null, tiers.map(function(t){ return t.price; }))) + '</div>' : '';
+      var featured = !!e.featured;
+      var cardStyle = 'cursor:pointer' + (featured ? ';border-color:var(--red);box-shadow:6px 6px 0 var(--red);transform:scale(1.03)' : '');
+      var statusLabel = featured ? '🎉 In evidenza' : 'In arrivo';
+      return '<div class="flyer" style="'+cardStyle+'" onclick="showArticolo(\'evento-'+e.id+'\')">'
+        + '<div class="flyer-top"><div><div class="flyer-day">'+e.day+'</div><div class="flyer-mon">'+e.mon+'</div></div><span class="evp-status"'+(featured ? ' style="background:var(--red)"' : '')+'>'+statusLabel+'</span></div>'
         + '<div class="flyer-body"><div class="flyer-title">'+e.title+'</div>' + priceBadge + '<div class="flyer-info">'+info+'</div></div>'
         + '<div class="evp-tear"></div>'
         + '<div class="flyer-foot"><a class="btn-rsvp" onclick="event.stopPropagation();showArticolo(\'evento-'+e.id+'\')">Info →</a><a class="btn-cal" onclick="event.stopPropagation();downloadICS(\''+e.id+'\')">+ Cal</a></div>'
