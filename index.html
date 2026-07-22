@@ -2711,7 +2711,7 @@ function scaroRenderTicketButton(e){
           })
         }).then(function(r){ return r.json(); }).then(function(res){
           if(status && res.ok){
-            status.innerHTML = '<div class="scaro-ticket-ok">✓ Biglietto generato — codice <b>' + escHTML(res.code) + '</b>' + (res.emailSent ? '. Controlla la tua email (anche lo spam) per il QR da mostrare all\'ingresso.' : '. Non siamo riusciti a inviarlo via email: conserva questo codice.') + '</div>';
+            status.innerHTML = '<div class="scaro-ticket-ok">✓ Biglietto generato — codice <b>' + escHTML(res.code) + '</b>' + (res.emailSent ? '. Controlla la tua email (anche lo spam) per il QR da mostrare all\'ingresso.' : '. Non siamo riusciti a inviarlo via email: conserva questo codice.' + (res.emailError ? '<br><span style="font-size:11px;opacity:.8">' + escHTML(res.emailError) + '</span>' : '')) + '</div>';
           } else if(status){
             status.innerHTML = '<div class="scaro-ticket-err">Pagamento approvato, ma la generazione del biglietto è fallita. Scrivici indicando questo riferimento ordine: ' + escHTML(data.orderID) + '</div>';
           }

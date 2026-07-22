@@ -152,7 +152,11 @@ async function sendTicketEmail(env, { to, code, eventTitle, tierLabel, verifyUrl
       html: html
     })
   });
-  return res.ok;
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    return { ok: false, detail: detail };
+  }
+  return { ok: true };
 }
 
 async function handleCreateOrder(request, env, origin) {
@@ -205,19 +209,22 @@ async function handleCaptureOrder(request, env, origin) {
   await env.TICKETS.put('order:' + body.orderID, code);
 
   let emailSent = false;
+  let emailError = '';
   if (record.buyerEmail) {
     try {
-      emailSent = await sendTicketEmail(env, {
+      const emailResult = await sendTicketEmail(env, {
         to: record.buyerEmail,
         code: code,
         eventTitle: record.eventTitle,
         tierLabel: record.tierLabel,
         verifyUrl: 'https://scaro.it/verifica.html?c=' + code
       });
-    } catch (e) { /* il biglietto resta valido anche se l'invio email fallisce */ }
+      emailSent = emailResult.ok;
+      if (!emailResult.ok) emailError = emailResult.detail || '';
+    } catch (e) { emailError = String(e); /* il biglietto resta valido anche se l'invio email fallisce */ }
   }
 
-  return json({ ok: true, code: code, emailSent: emailSent }, 200, origin);
+  return json({ ok: true, code: code, emailSent: emailSent, emailError: emailError }, 200, origin);
 }
 
 async function handleTestTicket(request, env, origin) {
@@ -246,19 +253,22 @@ async function handleTestTicket(request, env, origin) {
   await env.TICKETS.put('ticket:' + code, JSON.stringify(record));
 
   let emailSent = false;
+  let emailError = '';
   if (record.buyerEmail) {
     try {
-      emailSent = await sendTicketEmail(env, {
+      const emailResult = await sendTicketEmail(env, {
         to: record.buyerEmail,
         code: code,
         eventTitle: record.eventTitle,
         tierLabel: record.tierLabel,
         verifyUrl: 'https://scaro.it/verifica.html?c=' + code
       });
-    } catch (e) { /* il biglietto resta valido anche se l'invio email fallisce */ }
+      emailSent = emailResult.ok;
+      if (!emailResult.ok) emailError = emailResult.detail || '';
+    } catch (e) { emailError = String(e); /* il biglietto resta valido anche se l'invio email fallisce */ }
   }
 
-  return json({ ok: true, code: code, emailSent: emailSent }, 200, origin);
+  return json({ ok: true, code: code, emailSent: emailSent, emailError: emailError }, 200, origin);
 }
 
 async function handleListTickets(request, env, origin) {
