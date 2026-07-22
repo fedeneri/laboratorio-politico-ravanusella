@@ -2856,7 +2856,8 @@ function scaroRenderTicketButton(e){
           if(status && res.ok){
             var codes = res.codes || (res.code ? [res.code] : []);
             var codesHTML = codes.map(function(c){ return '<b>' + escHTML(c) + '</b>'; }).join(', ');
-            status.innerHTML = '<div class="scaro-ticket-ok">✓ ' + (codes.length > 1 ? codes.length + ' biglietti generati — codici: ' : 'Biglietto generato — codice ') + codesHTML + (res.emailSent ? '. Controlla la tua email (anche lo spam) per i QR da mostrare all\'ingresso.' : '. Non siamo riusciti a inviarli via email: conserva questi codici.' + (res.emailError ? '<br><span style="font-size:11px;opacity:.8">' + escHTML(res.emailError) + '</span>' : '')) + '</div>';
+            if(!res.emailSent && res.emailError) console.error('Scaro: invio email biglietto fallito', res.emailError);
+            status.innerHTML = '<div class="scaro-ticket-ok">✓ ' + (codes.length > 1 ? codes.length + ' biglietti generati — codici: ' : 'Biglietto generato — codice ') + codesHTML + (res.emailSent ? '. Controlla la tua email (anche lo spam) per i QR da mostrare all\'ingresso.' : '. Riceverai il biglietto via email a breve. Conserva comunque questo codice come promemoria.') + '</div>';
           } else if(status){
             status.innerHTML = '<div class="scaro-ticket-err">Pagamento approvato, ma la generazione del biglietto è fallita. Scrivici indicando questo riferimento ordine: ' + escHTML(data.orderID) + '</div>';
           }
