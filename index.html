@@ -1717,7 +1717,7 @@ const EVENTI_FUTURI = [
     flyer:'', /* ← inserire qui l'URL della locandina */
     price:0, /* ← se l'evento è a pagamento, metti qui il prezzo in euro (es. 5), altrimenti lascia 0 */
     ics:{ dtstart:'20260718T173000Z', dtend:'20260718T203000Z', summary:'Non restiamo senza — PattoXrestare', location:'Scaro Cafè, Agrigento', description:'Presentazione della campagna PattoXrestare: una piattaforma di proposte concrete per una Sicilia dove restare è una scelta possibile.' } },
-  { id:'cabaret-barbecue', dynamic:true, featured:true, day:'03', mon:'Agosto', yr:'2026', kind:'Cabaret',
+  { id:'cabaret-barbecue', dynamic:true, featured:true, heroTakeover:true, day:'03', mon:'Agosto', yr:'2026', kind:'Cabaret',
     title:'Cabaret & Barbecue — Stefano Chiodaroli',
     place:'Teatrino dello Scaro Cafè',
     time:'20:30', /* ← orario non indicato in locandina: verifica e correggi se necessario */
@@ -2680,12 +2680,40 @@ function cardHTML(m){
     + '<span class="mm">'+(m.autore||'')+' &middot; '+m.data+'</span>'
     + '</a>';
 }
+function scaroHeroEventTakeover(){
+  var now = new Date();
+  return EVENTI_FUTURI.find(function(e){
+    if(e.hidden || !e.heroTakeover) return false;
+    var d = scaroEventDateObj(e);
+    return !d || d >= now;
+  }) || null;
+}
+function scaroHeroEventHTML(e){
+  var tiers = scaroTiersOf(e);
+  var priceLine = tiers.length ? (tiers.length > 1 ? 'Da ' : '') + scaroFmtPrice(Math.min.apply(null, tiers.map(function(t){ return t.price; }))) : '';
+  var flyerImg = e.flyer || e.img;
+  var photo = flyerImg
+    ? '<div class="hl-ph"><img src="'+flyerImg+'" alt=""><span class="ph-cat talk" style="background:var(--red);color:#fff">🎟 BIGLIETTI</span></div>'
+    : '<div class="hl-ph fb"><span class="ph-cat talk" style="background:var(--red);color:#fff">🎟 BIGLIETTI</span></div>';
+  return photo
+    + '<div class="hl-kr"><span class="tcat" style="background:var(--red);color:#fff">EVENTO</span><span class="mm">'+escHTML(e.day+' '+e.mon)+'</span><span class="mm">'+escHTML(e.place || 'Scaro')+'</span></div>'
+    + '<h2 class="hl-title">'+escHTML(e.title)+'</h2>'
+    + '<p class="hl-dek">'+escHTML(e.description || '')+'</p>'
+    + '<div class="hl-foot"><span class="hl-byline">'+(priceLine ? priceLine : '')+'</span><span class="hl-cta">Compra i biglietti →</span></div>';
+}
 function renderHomeNews(filter){
   filter = filter || 'tutti';
-  var items = filter==='tutti' ? MEDIA_ITEMS : MEDIA_ITEMS.filter(function(m){ return m.mcat===filter; });
   var hero = document.getElementById('home-hero');
   var flusso = document.getElementById('home-flusso');
   if(!hero || !flusso) return;
+  var heroEvent = (filter === 'tutti') ? scaroHeroEventTakeover() : null;
+  var items = filter==='tutti' ? MEDIA_ITEMS : MEDIA_ITEMS.filter(function(m){ return m.mcat===filter; });
+  if(heroEvent){
+    hero.onclick = function(){ showArticolo('evento-' + heroEvent.id); };
+    hero.innerHTML = scaroHeroEventHTML(heroEvent);
+    flusso.innerHTML = items.length ? items.map(cardHTML).join('') : '<div class="home-empty">Presto altre pubblicazioni in questa rubrica.</div>';
+    return;
+  }
   if(!items.length){
     hero.onclick = null;
     hero.innerHTML = '<div class="home-empty">Nessuna pubblicazione in questa rubrica.</div>';
