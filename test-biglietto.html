@@ -61,7 +61,8 @@ document.getElementById('go-btn').onclick = function(){
       if(res.ok && res.data.ok){
         result.innerHTML = '<div class="status ok">✓ Biglietto generato: <b>' + res.data.code + '</b>'
           + (res.data.emailSent ? '<br>Email inviata a ' + email + ' (controlla anche lo spam).' : '<br>Email NON inviata — controlla il RESEND_API_KEY su Cloudflare.' + (res.data.emailError ? '<br><span style="font-size:11px;opacity:.8">' + res.data.emailError + '</span>' : ''))
-          + '<br><br><a href="verifica.html?c=' + res.data.code + '" target="_blank">Apri la verifica di questo biglietto →</a></div>';
+          + '<br><br><a href="biglietto.html?c=' + res.data.code + '" target="_blank">Scarica il biglietto →</a>'
+          + '<br><a href="verifica.html?c=' + res.data.code + '" target="_blank">Apri la verifica di questo biglietto →</a></div>';
       } else if(res.data && res.data.error === 'unauthorized'){
         result.innerHTML = '<div class="status bad">Chiave sbagliata (o TEST_KEY non impostata su Cloudflare).</div>';
       } else {

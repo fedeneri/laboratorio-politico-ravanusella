@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Il tuo biglietto — Scaro</title>
+<meta name="robots" content="noindex,nofollow">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:#F4E7DB;color:#164194;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.ticket{max-width:420px;width:100%;border:3px solid #164194;background:#fff;padding:28px}
+.eyebrow{font-family:monospace;font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:#5470B6;margin-bottom:10px}
+h1{font-size:22px;line-height:1.2;margin-bottom:6px}
+.meta{font-size:14px;color:#444;margin-bottom:20px}
+.code{font-family:monospace;font-size:26px;font-weight:bold;letter-spacing:2px;text-align:center;margin:20px 0;padding:14px;background:#E8D7BE;border:2px solid #164194}
+.qr{display:block;width:100%;max-width:260px;margin:0 auto 20px;border:2px solid #164194}
+.note{font-size:12px;color:#666;text-align:center;line-height:1.5;margin-bottom:20px}
+.status{margin-bottom:16px;padding:10px;border:2px solid #164194;font-size:13px;text-align:center;font-weight:700}
+.status.used{background:#fbdcdc;border-color:#b3261e;color:#b3261e}
+.status.ok{background:#d4f4dd;border-color:#1b5e20;color:#1b5e20}
+button{width:100%;font-family:inherit;font-size:14px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:14px;border:2px solid #164194;background:#E8D7BE;color:#164194;cursor:pointer}
+.error{text-align:center;color:#b3261e;font-weight:600;padding:20px 0}
+@media print{
+  body{background:#fff;padding:0}
+  button, .no-print{display:none}
+  .ticket{border:none;max-width:100%}
+}
+</style>
+</head>
+<body>
+<div class="ticket" id="ticket">Caricamento…</div>
+<script>
+const API_BASE = 'https://scaro-biglietti.scaro.workers.dev';
+
+function getParam(name){
+  var m = location.search.match(new RegExp('[?&]' + name + '=([^&]+)'));
+  return m ? decodeURIComponent(m[1]) : '';
+}
+function esc(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+var code = getParam('c').toUpperCase();
+var el = document.getElementById('ticket');
+
+if(!code){
+  el.innerHTML = '<div class="error">Codice biglietto mancante nel link.</div>';
+} else {
+  fetch(API_BASE + '/api/ticket/' + encodeURIComponent(code))
+    .then(function(r){ return r.json().then(function(d){ return { ok:r.ok, data:d }; }); })
+    .then(function(res){
+      if(!res.ok || !res.data.ok){
+        el.innerHTML = '<div class="error">Biglietto non trovato. Controlla il codice.</div>';
+        return;
+      }
+      var t = res.data;
+      var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=' + encodeURIComponent('https://scaro.it/verifica.html?c=' + code);
+      var statusHTML = t.used
+        ? '<div class="status used">✗ Biglietto già usato' + (t.usedAt ? ' il ' + new Date(t.usedAt).toLocaleString('it-IT') : '') + '</div>'
+        : '<div class="status ok">✓ Valido — non ancora usato</div>';
+      el.innerHTML =
+        '<div class="eyebrow">Biglietto Scaro</div>' +
+        '<h1>' + esc(t.eventTitle || 'Evento Scaro') + '</h1>' +
+        '<div class="meta">' + esc(t.tierLabel || '') + (t.buyerName ? ' · ' + esc(t.buyerName) : '') + '</div>' +
+        statusHTML +
+        '<div class="code">' + esc(code) + '</div>' +
+        '<img class="qr" src="' + qrUrl + '" alt="QR biglietto">' +
+        '<p class="note">Mostra questa pagina (stampata, salvata come PDF, o direttamente sul telefono) all\'ingresso. Valido per un solo accesso.</p>' +
+        '<button class="no-print" onclick="window.print()">🖨 Stampa / Salva come PDF</button>';
+    })
+    .catch(function(){
+      el.innerHTML = '<div class="error">Errore di rete. Riprova, o conserva semplicemente il codice ' + esc(code) + '.</div>';
+    });
+}
+</script>
+</body>
+</html>
