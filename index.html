@@ -1502,6 +1502,12 @@ footer{background:var(--black);color:var(--white);padding:64px 60px 40px}
 .scaro-tier-opt input{accent-color:var(--blue);width:16px;height:16px;flex-shrink:0}
 .scaro-tier-label{flex:1;font-size:14px;line-height:1.3}
 .scaro-tier-price{font-family:var(--font-mono);font-weight:700;color:var(--blue);white-space:nowrap}
+.scaro-qty-row{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:16px;padding-top:16px;border-top:1px solid var(--gray-mid)}
+.scaro-qty-label{font-family:var(--font-mono);font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-dark)}
+.scaro-qty-stepper{display:flex;align-items:center;border:2px solid var(--black)}
+.scaro-qty-stepper button{width:34px;height:34px;border:none;background:var(--gray-light);font-size:18px;font-weight:700;cursor:pointer;color:var(--blue)}
+.scaro-qty-stepper button:hover{background:var(--yellow)}
+.scaro-qty-stepper input{width:42px;height:34px;border:none;border-left:2px solid var(--black);border-right:2px solid var(--black);text-align:center;font-family:var(--font-mono);font-weight:700;font-size:14px;color:var(--black)}
 .scaro-ticket-status{margin-top:14px;font-size:14px;line-height:1.5}
 .scaro-ticket-ok{color:#1b5e20;font-weight:600}
 .scaro-ticket-err{color:#b3261e;font-weight:600}
@@ -2724,6 +2730,14 @@ function scaroSelectTier(id, input){
   var mount = document.getElementById('paypal-btn-' + id);
   if(mount) mount.dataset.tier = input.value;
 }
+function scaroChangeQty(id, delta){
+  var input = document.getElementById('qty-' + id);
+  if(!input) return;
+  var v = Math.max(1, Math.min(20, (parseInt(input.value, 10) || 1) + delta));
+  input.value = v;
+  var mount = document.getElementById('paypal-btn-' + id);
+  if(mount) mount.dataset.qty = v;
+}
 function scaroTicketBoxHTML(e){
   var tiers = scaroTiersOf(e);
   var single = tiers.length <= 1;
@@ -2736,13 +2750,22 @@ function scaroTicketBoxHTML(e){
           + '<span class="scaro-tier-price">' + scaroFmtPrice(t.price) + '</span>'
           + '</label>';
       }).join('') + '</div>';
+  var qtyRow = '<div class="scaro-qty-row">'
+    + '<span class="scaro-qty-label">Quanti biglietti</span>'
+    + '<div class="scaro-qty-stepper">'
+    +   '<button type="button" onclick="scaroChangeQty(\'' + e.id + '\', -1)">−</button>'
+    +   '<input id="qty-' + e.id + '" type="number" value="1" min="1" max="20" readonly>'
+    +   '<button type="button" onclick="scaroChangeQty(\'' + e.id + '\', 1)">+</button>'
+    + '</div>'
+    + '</div>';
   return '<div class="scaro-ticket-box">'
     + '<div class="scaro-ticket-head">'
     +   '<div class="scaro-ticket-label">Biglietto</div>'
     +   (e.ticketNote ? '<div class="scaro-ticket-note">' + escHTML(e.ticketNote) + '</div>' : '')
     + '</div>'
     + priceOrList
-    + '<div id="paypal-btn-' + e.id + '" class="scaro-ticket-btns" data-tier="0" style="margin-top:16px"></div>'
+    + qtyRow
+    + '<div id="paypal-btn-' + e.id + '" class="scaro-ticket-btns" data-tier="0" data-qty="1" style="margin-top:16px"></div>'
     + '<div id="paypal-status-' + e.id + '" class="scaro-ticket-status"></div>'
     + '</div>';
 }
@@ -2765,13 +2788,15 @@ function scaroRenderTicketButton(e){
         }
         var idx = Number(mount.dataset.tier || 0);
         var tier = tiers[idx] || tiers[0];
+        var qty = Math.max(1, Number(mount.dataset.qty || 1));
         return fetch(SCARO_API_BASE + '/api/create-order', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             eventId: e.id,
             tierId: tier.id || '',
-            amount: (Number(tier.price)||0).toFixed(2)
+            qty: qty,
+            amount: ((Number(tier.price)||0) * qty).toFixed(2)
           })
         }).then(function(r){ return r.json(); }).then(function(res){
           if(!res.id){
@@ -2788,6 +2813,7 @@ function scaroRenderTicketButton(e){
         if(status) status.innerHTML = '<div class="scaro-ticket-ok">✓ Pagamento approvato! Sto confermando e generando il tuo biglietto…</div>';
         var idx = Number(mount.dataset.tier || 0);
         var tier = tiers[idx] || tiers[0];
+        var qty = Math.max(1, Number(mount.dataset.qty || 1));
         return fetch(SCARO_API_BASE + '/api/capture-order', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -2795,11 +2821,14 @@ function scaroRenderTicketButton(e){
             orderID: data.orderID,
             tierId: tier.id || '',
             tierLabel: tier.label || '',
+            qty: qty,
             eventTitle: e.title || e.testo || ''
           })
         }).then(function(r){ return r.json(); }).then(function(res){
           if(status && res.ok){
-            status.innerHTML = '<div class="scaro-ticket-ok">✓ Biglietto generato — codice <b>' + escHTML(res.code) + '</b>' + (res.emailSent ? '. Controlla la tua email (anche lo spam) per il QR da mostrare all\'ingresso.' : '. Non siamo riusciti a inviarlo via email: conserva questo codice.' + (res.emailError ? '<br><span style="font-size:11px;opacity:.8">' + escHTML(res.emailError) + '</span>' : '')) + '</div>';
+            var codes = res.codes || (res.code ? [res.code] : []);
+            var codesHTML = codes.map(function(c){ return '<b>' + escHTML(c) + '</b>'; }).join(', ');
+            status.innerHTML = '<div class="scaro-ticket-ok">✓ ' + (codes.length > 1 ? codes.length + ' biglietti generati — codici: ' : 'Biglietto generato — codice ') + codesHTML + (res.emailSent ? '. Controlla la tua email (anche lo spam) per i QR da mostrare all\'ingresso.' : '. Non siamo riusciti a inviarli via email: conserva questi codici.' + (res.emailError ? '<br><span style="font-size:11px;opacity:.8">' + escHTML(res.emailError) + '</span>' : '')) + '</div>';
           } else if(status){
             status.innerHTML = '<div class="scaro-ticket-err">Pagamento approvato, ma la generazione del biglietto è fallita. Scrivici indicando questo riferimento ordine: ' + escHTML(data.orderID) + '</div>';
           }

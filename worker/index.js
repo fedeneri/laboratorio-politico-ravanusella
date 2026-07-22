@@ -128,16 +128,21 @@ async function paypalCaptureOrder(env, orderId) {
   return res.json();
 }
 
-async function sendTicketEmail(env, { to, code, eventTitle, tierLabel, verifyUrl }) {
-  const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=' + encodeURIComponent(verifyUrl);
+async function sendTicketEmail(env, { to, codes, eventTitle, tierLabel, verifyUrlBase }) {
+  const ticketBlocks = codes.map(function(code){
+    const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=' + encodeURIComponent(verifyUrlBase + code);
+    return '<div style="border-top:1px solid #ddd;padding:20px 0;">' +
+      '<p style="font-size:22px;font-weight:bold;letter-spacing:2px;margin:0 0 12px;">' + code + '</p>' +
+      '<img src="' + qrUrl + '" alt="QR biglietto" style="width:100%;max-width:280px;display:block;margin:0 0 8px;">' +
+      '</div>';
+  }).join('');
   const html =
     '<div style="font-family:sans-serif;max-width:480px;margin:0 auto;border:2px solid #164194;padding:24px;">' +
-    '<h1 style="color:#164194;font-size:20px;margin:0 0 12px;">Il tuo biglietto Scaro</h1>' +
+    '<h1 style="color:#164194;font-size:20px;margin:0 0 12px;">' + (codes.length > 1 ? 'I tuoi ' + codes.length + ' biglietti Scaro' : 'Il tuo biglietto Scaro') + '</h1>' +
     '<p style="margin:0 0 4px;"><b>' + eventTitle + '</b></p>' +
-    '<p style="margin:0 0 16px;color:#555;">' + tierLabel + '</p>' +
-    '<p style="font-size:24px;font-weight:bold;letter-spacing:2px;margin:0 0 16px;">' + code + '</p>' +
-    '<img src="' + qrUrl + '" alt="QR biglietto" style="width:100%;max-width:320px;display:block;margin:0 0 16px;">' +
-    '<p style="font-size:13px;color:#555;margin:0;">Mostra questa email (o il QR) all\'ingresso. Il biglietto è valido per un solo ingresso.</p>' +
+    '<p style="margin:0 0 8px;color:#555;">' + tierLabel + '</p>' +
+    ticketBlocks +
+    '<p style="font-size:13px;color:#555;margin:16px 0 0;">Mostra questa email (o i QR) all\'ingresso. Ogni biglietto è valido per un solo ingresso.</p>' +
     '</div>';
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -148,7 +153,7 @@ async function sendTicketEmail(env, { to, code, eventTitle, tierLabel, verifyUrl
     body: JSON.stringify({
       from: env.RESEND_FROM || 'Scaro <onboarding@resend.dev>',
       to: [to],
-      subject: 'Il tuo biglietto — ' + eventTitle,
+      subject: (codes.length > 1 ? 'I tuoi biglietti' : 'Il tuo biglietto') + ' — ' + eventTitle,
       html: html
     })
   });
@@ -177,9 +182,12 @@ async function handleCaptureOrder(request, env, origin) {
   const body = await request.json().catch(() => null);
   if (!body || !body.orderID) return json({ ok: false, error: 'bad-request' }, 400, origin);
 
-  // Idempotenza: se questo ordine ha già generato un biglietto, restituisci quello.
+  // Idempotenza: se questo ordine ha già generato dei biglietti, restituisci quelli.
   const existing = await env.TICKETS.get('order:' + body.orderID);
-  if (existing) return json({ ok: true, code: existing, alreadyIssued: true }, 200, origin);
+  if (existing) {
+    const codes = JSON.parse(existing);
+    return json({ ok: true, code: codes[0], codes: codes, alreadyIssued: true }, 200, origin);
+  }
 
   let capture;
   try { capture = await paypalCaptureOrder(env, body.orderID); }
@@ -190,41 +198,48 @@ async function handleCaptureOrder(request, env, origin) {
   const unit = (capture.purchase_units && capture.purchase_units[0]) || {};
   const paidCustomId = unit.custom_id || '';
   const eventId = paidCustomId.split(':')[0];
+  const qty = Math.max(1, Math.min(20, parseInt(body.qty, 10) || 1));
 
-  const code = randomCode();
   const payer = capture.payer || {};
-  const record = {
-    orderId: body.orderID,
-    eventId: eventId,
-    tierId: body.tierId || '',
-    tierLabel: body.tierLabel || '',
-    eventTitle: body.eventTitle || '',
-    buyerEmail: payer.email_address || body.buyerEmail || '',
-    buyerName: (payer.name && payer.name.given_name) || body.buyerName || '',
-    used: false,
-    createdAt: new Date().toISOString(),
-    usedAt: null
-  };
-  await env.TICKETS.put('ticket:' + code, JSON.stringify(record));
-  await env.TICKETS.put('order:' + body.orderID, code);
+  const buyerEmail = payer.email_address || body.buyerEmail || '';
+  const buyerName = (payer.name && payer.name.given_name) || body.buyerName || '';
+  const codes = [];
+  for (let i = 0; i < qty; i++) {
+    const code = randomCode();
+    const record = {
+      orderId: body.orderID,
+      eventId: eventId,
+      tierId: body.tierId || '',
+      tierLabel: body.tierLabel || '',
+      eventTitle: body.eventTitle || '',
+      buyerEmail: buyerEmail,
+      buyerName: buyerName,
+      used: false,
+      createdAt: new Date().toISOString(),
+      usedAt: null
+    };
+    await env.TICKETS.put('ticket:' + code, JSON.stringify(record));
+    codes.push(code);
+  }
+  await env.TICKETS.put('order:' + body.orderID, JSON.stringify(codes));
 
   let emailSent = false;
   let emailError = '';
-  if (record.buyerEmail) {
+  if (buyerEmail) {
     try {
       const emailResult = await sendTicketEmail(env, {
-        to: record.buyerEmail,
-        code: code,
-        eventTitle: record.eventTitle,
-        tierLabel: record.tierLabel,
-        verifyUrl: 'https://scaro.it/verifica.html?c=' + code
+        to: buyerEmail,
+        codes: codes,
+        eventTitle: body.eventTitle || '',
+        tierLabel: body.tierLabel || '',
+        verifyUrlBase: 'https://scaro.it/verifica.html?c='
       });
       emailSent = emailResult.ok;
       if (!emailResult.ok) emailError = emailResult.detail || '';
-    } catch (e) { emailError = String(e); /* il biglietto resta valido anche se l'invio email fallisce */ }
+    } catch (e) { emailError = String(e); /* i biglietti restano validi anche se l'invio email fallisce */ }
   }
 
-  return json({ ok: true, code: code, emailSent: emailSent, emailError: emailError }, 200, origin);
+  return json({ ok: true, code: codes[0], codes: codes, emailSent: emailSent, emailError: emailError }, 200, origin);
 }
 
 async function handleTestTicket(request, env, origin) {
@@ -258,10 +273,10 @@ async function handleTestTicket(request, env, origin) {
     try {
       const emailResult = await sendTicketEmail(env, {
         to: record.buyerEmail,
-        code: code,
+        codes: [code],
         eventTitle: record.eventTitle,
         tierLabel: record.tierLabel,
-        verifyUrl: 'https://scaro.it/verifica.html?c=' + code
+        verifyUrlBase: 'https://scaro.it/verifica.html?c='
       });
       emailSent = emailResult.ok;
       if (!emailResult.ok) emailError = emailResult.detail || '';
