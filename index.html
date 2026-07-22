@@ -738,7 +738,15 @@ footer{background:var(--black);color:var(--white);padding:64px 60px 40px}
       </div>
     </div>
 
-    <a class="nav-link" id="nav-podcast" onclick="showPage('podcast')">Podcast</a>
+    <div class="nav-dropdown" id="nav-podcast-wrap">
+      <a class="nav-link" id="nav-podcast" onclick="togglePodcast(event)">
+        Podcast <span class="nav-caret">▾</span>
+      </a>
+      <div class="nav-dropdown-menu" id="nav-podcast-menu">
+        <a onclick="showPage('podcast-voci'); closePodcast()">Voci in Piazza</a>
+        <a onclick="showPage('podcast-scaristi'); closePodcast()">Gli Scaristi</a>
+      </div>
+    </div>
     <a class="nav-link" id="nav-eventi" onclick="showPage('eventi')">Eventi</a>
     <a class="nav-link" id="nav-segnalazioni" onclick="showPage('segnalazioni')">Proposte</a>
   </div>
@@ -1301,33 +1309,33 @@ footer{background:var(--black);color:var(--white);padding:64px 60px 40px}
 
 <!-- ══ PODCAST ══ -->
 <style>
-#page-podcast .pod-wrap{max-width:1280px;margin:0 auto;padding:0 clamp(20px,5vw,60px)}
-#page-podcast .pod-head{padding:clamp(36px,5vw,64px) clamp(20px,5vw,60px) clamp(28px,4vw,44px);border-bottom:var(--border);background:var(--cream)}
-#page-podcast .pod-eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--gray-dark);margin-bottom:14px}
-#page-podcast .pod-title{font-family:var(--font-display);font-size:clamp(48px,8vw,104px);font-weight:900;line-height:.86;letter-spacing:0;color:var(--blue);margin-bottom:18px}
-#page-podcast .pod-title em{font-style:italic}
-#page-podcast .pod-desc{font-size:clamp(15px,1.6vw,18px);line-height:1.55;color:#333;max-width:720px}
-#page-podcast .pod-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}
-#page-podcast .pod-spotify{display:inline-flex;align-items:center;gap:10px;background:var(--black);color:#fff;border:2px solid var(--black);padding:12px 18px;font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;text-decoration:none}
-#page-podcast .pod-spotify:hover{background:var(--accent-yellow);color:var(--blue)}
-#page-podcast .pod-count{display:inline-flex;align-items:center;border:2px solid var(--black);padding:12px 18px;font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;background:#fff}
-#page-podcast .pod-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(22px,3vw,36px);padding:clamp(28px,4vw,52px) 0}
-#page-podcast .pod-card{display:grid;grid-template-columns:150px 1fr;gap:20px;border:2px solid var(--black);background:#fff;box-shadow:7px 7px 0 var(--black);padding:18px;min-height:190px;transition:box-shadow .22s ease,transform .22s ease;background-clip:padding-box}
-#page-podcast .pod-card:hover{box-shadow:3px 3px 0 var(--accent-warm);transform:translate(4px,4px)}
-#page-podcast .pod-card.trailer{background:var(--gray-light)}
-#page-podcast .pod-cover{width:150px;aspect-ratio:1/1;border:2px solid var(--black);background:var(--gray-mid);object-fit:cover}
-#page-podcast .pod-meta{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
-#page-podcast .pod-chip{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--black);padding:4px 8px;background:var(--accent-yellow);color:var(--blue)}
-#page-podcast .pod-chip.dark{background:var(--black);color:#fff}
-#page-podcast .pod-name{font-family:var(--font-display);font-size:clamp(22px,2.2vw,30px);font-weight:900;line-height:1.05;margin-bottom:10px;letter-spacing:0}
-#page-podcast .pod-copy{font-size:14px;line-height:1.55;color:#333;margin-bottom:14px}
-#page-podcast .pod-link{display:inline-flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--black);text-decoration:none;border-bottom:2px solid var(--black);padding-bottom:2px}
-#page-podcast .pod-link:hover{color:var(--blue);border-color:var(--blue)}
-@media(max-width:900px){#page-podcast .pod-grid{grid-template-columns:1fr}}
-@media(max-width:560px){#page-podcast .pod-card{grid-template-columns:1fr}.pod-cover{width:100%}#page-podcast .pod-cover{width:100%}}
+.pod-wrap{max-width:1280px;margin:0 auto;padding:0 clamp(20px,5vw,60px)}
+.pod-head{padding:clamp(36px,5vw,64px) clamp(20px,5vw,60px) clamp(28px,4vw,44px);border-bottom:var(--border);background:var(--cream)}
+.pod-eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--gray-dark);margin-bottom:14px}
+.pod-title{font-family:var(--font-display);font-size:clamp(48px,8vw,104px);font-weight:900;line-height:.86;letter-spacing:0;color:var(--blue);margin-bottom:18px}
+.pod-title em{font-style:italic}
+.pod-desc{font-size:clamp(15px,1.6vw,18px);line-height:1.55;color:#333;max-width:720px}
+.pod-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}
+.pod-spotify{display:inline-flex;align-items:center;gap:10px;background:var(--black);color:#fff;border:2px solid var(--black);padding:12px 18px;font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;text-decoration:none}
+.pod-spotify:hover{background:var(--accent-yellow);color:var(--blue)}
+.pod-count{display:inline-flex;align-items:center;border:2px solid var(--black);padding:12px 18px;font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;background:#fff}
+.pod-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(22px,3vw,36px);padding:clamp(28px,4vw,52px) 0}
+.pod-card{display:grid;grid-template-columns:150px 1fr;gap:20px;border:2px solid var(--black);background:#fff;box-shadow:7px 7px 0 var(--black);padding:18px;min-height:190px;transition:box-shadow .22s ease,transform .22s ease;background-clip:padding-box}
+.pod-card:hover{box-shadow:3px 3px 0 var(--accent-warm);transform:translate(4px,4px)}
+.pod-card.trailer{background:var(--gray-light)}
+.pod-cover{width:150px;aspect-ratio:1/1;border:2px solid var(--black);background:var(--gray-mid);object-fit:cover}
+.pod-meta{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.pod-chip{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--black);padding:4px 8px;background:var(--accent-yellow);color:var(--blue)}
+.pod-chip.dark{background:var(--black);color:#fff}
+.pod-name{font-family:var(--font-display);font-size:clamp(22px,2.2vw,30px);font-weight:900;line-height:1.05;margin-bottom:10px;letter-spacing:0}
+.pod-copy{font-size:14px;line-height:1.55;color:#333;margin-bottom:14px}
+.pod-link{display:inline-flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--black);text-decoration:none;border-bottom:2px solid var(--black);padding-bottom:2px}
+.pod-link:hover{color:var(--blue);border-color:var(--blue)}
+@media(max-width:900px){.pod-grid{grid-template-columns:1fr}}
+@media(max-width:560px){.pod-card{grid-template-columns:1fr}.pod-cover{width:100%}.pod-cover{width:100%}}
 </style>
 
-<div class="page" id="page-podcast">
+<div class="page" id="page-podcast-voci">
   <header class="pod-head">
     <div class="pod-eyebrow">Podcast di Scaro</div>
     <h1 class="pod-title">Voci in<br><em>Piazza</em></h1>
@@ -1392,11 +1400,22 @@ footer{background:var(--black);color:var(--white);padding:64px 60px 40px}
     </div>
   </section>
 
-  <!-- ══ PODCAST: GLI SCARISTI ══
-       Per aggiungere una nuova puntata: duplica un <article class="pod-card"> qui sotto,
-       e per farla comparire anche come primo articolo in home aggiungi in cima a
-       MEDIA_ITEMS (sezione [1] CONTENUTI DA AGGIORNARE) una voce con mcat:'talk'
-       e lo stesso id del video YouTube. -->
+  <footer>
+    <div class="footer-grid">
+      <div><div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;"><img class="nav-logo-badge" src="pomodoro_originale_trasparente.png" alt="Pomodoro Scaro"><span class="footer-brand-name">Scaro</span></div><p class="footer-brand-desc">Cultura, attivismo e storie vive da Piazza Ravanusella.</p></div>
+      <div><p class="footer-col-title">Navigazione</p><a class="footer-link" onclick="showPage('home')">News</a><a class="footer-link" onclick="showPage('podcast-voci')">Voci in Piazza</a><a class="footer-link" onclick="showPage('podcast-scaristi')">Gli Scaristi</a><a class="footer-link" onclick="showPage('eventi')">Eventi</a><a class="footer-link" onclick="showPage('segnalazioni')">Proposte</a></div>
+      <div><p class="footer-col-title">Podcast</p><a class="footer-link" href="https://open.spotify.com/show/4PwkJZ4NHHggmkgaR3R1Pv" target="_blank">Voci in Piazza su Spotify</a></div>
+    </div>
+    <div class="footer-bottom"><span>© 2026 Scaro</span><span>Storie autentiche e senza filtri.</span></div>
+  </footer>
+</div>
+
+<!-- ══ PODCAST: GLI SCARISTI ══
+     Per aggiungere una nuova puntata: duplica un <article class="pod-card"> qui sotto,
+     e per farla comparire anche come primo articolo in home aggiungi in cima a
+     MEDIA_ITEMS (sezione [1] CONTENUTI DA AGGIORNARE) una voce con mcat:'talk'
+     e lo stesso id del video YouTube. -->
+<div class="page" id="page-podcast-scaristi">
   <header class="pod-head">
     <div class="pod-eyebrow">Podcast di Scaro</div>
     <h1 class="pod-title">Gli<br><em>Scaristi</em></h1>
@@ -1433,11 +1452,11 @@ footer{background:var(--black);color:var(--white);padding:64px 60px 40px}
 
   <footer>
     <div class="footer-grid">
-      <div><div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;"><img class="nav-logo-badge" src="pomodoro_originale_trasparente.png" alt="Pomodoro Scaro"><span class="footer-brand-name">Scaro</span></div><p class="footer-brand-desc">Cultura, attivismo e storie vive da Piazza Ravanusella.</p></div>
-      <div><p class="footer-col-title">Navigazione</p><a class="footer-link" onclick="showPage('home')">News</a><a class="footer-link" onclick="showPage('podcast')">Podcast</a><a class="footer-link" onclick="showPage('eventi')">Eventi</a><a class="footer-link" onclick="showPage('segnalazioni')">Proposte</a></div>
-      <div><p class="footer-col-title">Podcast</p><a class="footer-link" href="https://open.spotify.com/show/4PwkJZ4NHHggmkgaR3R1Pv" target="_blank">Voci in Piazza su Spotify</a></div>
+      <div><div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;"><img class="nav-logo-badge" src="pomodoro_originale_trasparente.png" alt="Pomodoro Scaro"><span class="footer-brand-name">Scaro</span></div><p class="footer-brand-desc">Scaro è occupato fino a nuovo ordine.</p></div>
+      <div><p class="footer-col-title">Navigazione</p><a class="footer-link" onclick="showPage('home')">News</a><a class="footer-link" onclick="showPage('podcast-voci')">Voci in Piazza</a><a class="footer-link" onclick="showPage('podcast-scaristi')">Gli Scaristi</a><a class="footer-link" onclick="showPage('eventi')">Eventi</a><a class="footer-link" onclick="showPage('segnalazioni')">Proposte</a></div>
+      <div><p class="footer-col-title">Podcast</p><a class="footer-link" href="https://www.instagram.com/reel/Da2_BZcIEBF/?utm_source=ig_web_copy_link&amp;igsh=MzRlODBiNWFlZA==" target="_blank">Gli Scaristi (Trailer) su Instagram</a></div>
     </div>
-    <div class="footer-bottom"><span>© 2026 Scaro</span><span>Storie autentiche e senza filtri.</span></div>
+    <div class="footer-bottom"><span>© 2026 Scaro</span><span>Gestione proletaria del servizio.</span></div>
   </footer>
 </div>
 
@@ -1881,7 +1900,8 @@ const SCARO_PAGES = {
   home:         { slug:'',          title:'Scaro — News',        description:'Le ultime pubblicazioni, talk e analisi dalla comunità di Scaro.' },
   albopop:      { slug:'albopop',   title:'AlboPOP — Scaro',     description:'L’Albo Pretorio del Comune di Agrigento, reso leggibile e monitorato civicamente.' },
   consiglio:    { slug:'consiglio', title:'Consiglio Comunale — Scaro', description:'Chi siede in Consiglio Comunale ad Agrigento: liste, voti e schieramenti.' },
-  podcast:      { slug:'podcast',   title:'Podcast — Scaro',     description:'Gli episodi del podcast di Scaro.' },
+  'podcast-voci':     { slug:'voci-in-piazza', title:'Voci in Piazza — Scaro', description:'Uno sporco podcast sulle sporche vite di Piazza Ravanusella.' },
+  'podcast-scaristi': { slug:'gli-scaristi',   title:'Gli Scaristi — Scaro',   description:'Scaro è occupato fino a nuovo ordine. Dopo attente valutazioni interne, abbiamo sostituito la vecchia direzione con una gestione proletaria del servizio.' },
   eventi:       { slug:'eventi',    title:'Eventi — Scaro',      description:'Gli appuntamenti in programma e l’archivio degli eventi passati di Scaro.' },
   segnalazioni: { slug:'proposte',  title:'Proposte — Scaro',    description:'Segnala un problema o proponi un’iniziativa alla comunità di Scaro.' }
 };
@@ -2513,9 +2533,12 @@ function showPage(name, opts) {
   pg.classList.add("active");
   pg.style.animation = "";
   closeMonitoraggio();
+  closePodcast();
   closeBurger();
   if(name === 'albopop' || name === 'consiglio'){
     var nm = document.getElementById('nav-monitoraggio'); if(nm) nm.classList.add('active');
+  } else if(name === 'podcast-voci' || name === 'podcast-scaristi'){
+    var np = document.getElementById('nav-podcast'); if(np) np.classList.add('active');
   } else {
     var _nv=document.getElementById("nav-"+name); if(_nv) _nv.classList.add("active");
   }
@@ -2957,6 +2980,32 @@ function closeMonitoraggio(){
   var menu = document.getElementById('nav-monitoraggio-menu');
   if(menu){ menu.style.position=''; menu.style.top=''; menu.style.left=''; menu.style.right=''; }
 }
+function togglePodcast(e){
+  e.stopPropagation();
+  var wrap = document.getElementById('nav-podcast-wrap');
+  var menu = document.getElementById('nav-podcast-menu');
+  var open = wrap.classList.toggle('open');
+  if(open && window.innerWidth <= 960){
+    var r = document.getElementById('nav-podcast').getBoundingClientRect();
+    var left = r.left;
+    if(left + 180 > window.innerWidth) left = window.innerWidth - 180;
+    menu.style.position = 'fixed';
+    menu.style.top = (r.bottom + 4) + 'px';
+    menu.style.left = Math.max(8, left) + 'px';
+    menu.style.right = 'auto';
+  } else {
+    menu.style.position = '';
+    menu.style.top = '';
+    menu.style.left = '';
+    menu.style.right = '';
+  }
+}
+function closePodcast(){
+  var wrap = document.getElementById('nav-podcast-wrap');
+  if(wrap) wrap.classList.remove('open');
+  var menu = document.getElementById('nav-podcast-menu');
+  if(menu){ menu.style.position=''; menu.style.top=''; menu.style.left=''; menu.style.right=''; }
+}
 function toggleBurger(e){
   if(e) e.stopPropagation();
   var b = document.getElementById('nav-burger');
@@ -2968,7 +3017,7 @@ function closeBurger(){
   var b = document.getElementById('nav-burger'); if(b) b.classList.remove('open');
   var l = document.getElementById('nav-links'); if(l) l.classList.remove('open');
 }
-document.addEventListener('click', function(){ closeMonitoraggio(); closeBurger(); });
+document.addEventListener('click', function(){ closeMonitoraggio(); closePodcast(); closeBurger(); });
 
 /* ===================== [6] AVVIO ===================== */
 renderConsiglieri();
