@@ -1392,6 +1392,45 @@ footer{background:var(--black);color:var(--white);padding:64px 60px 40px}
     </div>
   </section>
 
+  <!-- ══ PODCAST: GLI SCARISTI ══
+       Per aggiungere una nuova puntata: duplica un <article class="pod-card"> qui sotto,
+       e per farla comparire anche come primo articolo in home aggiungi in cima a
+       MEDIA_ITEMS (sezione [1] CONTENUTI DA AGGIORNARE) una voce con mcat:'talk'
+       e lo stesso id del video YouTube. -->
+  <header class="pod-head">
+    <div class="pod-eyebrow">Podcast di Scaro</div>
+    <h1 class="pod-title">Gli<br><em>Scaristi</em></h1>
+    <p class="pod-desc">Scaro è occupato fino a nuovo ordine. Dopo attente valutazioni interne, abbiamo sostituito la vecchia direzione con una gestione proletaria del servizio.</p>
+    <div class="pod-actions">
+      <a class="pod-spotify" href="https://www.instagram.com/reel/Da2_BZcIEBF/?utm_source=ig_web_copy_link&amp;igsh=MzRlODBiNWFlZA==" target="_blank" rel="noopener">Guarda il trailer →</a>
+      <span class="pod-count">1 puntata + trailer</span>
+    </div>
+  </header>
+
+  <section class="pod-wrap">
+    <div class="pod-grid">
+      <article class="pod-card">
+        <img class="pod-cover" src="https://img.youtube.com/vi/WCmcTbjXqRI/hqdefault.jpg" alt="Gli Scaristi — Puntata 1">
+        <div>
+          <div class="pod-meta"><span class="pod-chip">Luglio 2026</span><span class="pod-chip dark">Puntata 1</span></div>
+          <h2 class="pod-name">Gli Scaristi — Puntata 1</h2>
+          <p class="pod-copy">Scaro è occupato fino a nuovo ordine. Dopo attente valutazioni interne, abbiamo sostituito la vecchia direzione con una gestione proletaria del servizio.</p>
+          <a class="pod-link" href="https://www.youtube.com/watch?v=WCmcTbjXqRI" target="_blank" rel="noopener">Guarda su YouTube →</a>
+        </div>
+      </article>
+
+      <article class="pod-card trailer">
+        <img class="pod-cover" src="pomodoro_originale_trasparente.png" alt="Gli Scaristi — Trailer">
+        <div>
+          <div class="pod-meta"><span class="pod-chip">Luglio 2026</span><span class="pod-chip dark">Trailer</span></div>
+          <h2 class="pod-name">Gli Scaristi (Trailer)</h2>
+          <p class="pod-copy">Il trailer del nuovo podcast di Scaro.</p>
+          <a class="pod-link" href="https://www.instagram.com/reel/Da2_BZcIEBF/?utm_source=ig_web_copy_link&amp;igsh=MzRlODBiNWFlZA==" target="_blank" rel="noopener">Guarda il trailer su Instagram →</a>
+        </div>
+      </article>
+    </div>
+  </section>
+
   <footer>
     <div class="footer-grid">
       <div><div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;"><img class="nav-logo-badge" src="pomodoro_originale_trasparente.png" alt="Pomodoro Scaro"><span class="footer-brand-name">Scaro</span></div><p class="footer-brand-desc">Cultura, attivismo e storie vive da Piazza Ravanusella.</p></div>
@@ -1629,6 +1668,7 @@ footer{background:var(--black);color:var(--white);padding:64px 60px 40px}
 
 /* -- MEDIA LAB: talk / analisi / inchieste / contributi (il primo della lista e' l'articolo grande in Home) -- */
 const MEDIA_ITEMS = [
+  { id:'scaristi-01', dynamic:true, mcat:'talk', tipo:'Podcast', data:'Luglio 2026', dur:'Puntata 1', youtube:'WCmcTbjXqRI', testo:'Gli Scaristi — Puntata 1', desc:'Scaro è occupato fino a nuovo ordine. Dopo attente valutazioni interne, abbiamo sostituito la vecchia direzione con una gestione proletaria del servizio.', body:'Scaro è occupato fino a nuovo ordine. Dopo attente valutazioni interne, abbiamo sostituito la vecchia direzione con una gestione proletaria del servizio.', autore:'Gli Scaristi' },
   { id:'talk-01', mcat:'talk', tipo:'Talk', data:'Giugno 2026', dur:'~2 ore', youtube:'gpv8ACqCScc', testo:'Elezioni Comunali Agrigento - 2026 Analisi del voto', desc:'AFFINITÀ E DIVERGENZE TRA NOI E IL COMPAGNO ROBERTO DI MAURO. Dal 1993 a oggi sono passati trentatré anni. Proveremo a fare un\'analisi del voto: convergenze e divergenze tra il 1993 e il 2026.', autore:'Mauro Indelicato, Gaetano Gucciardo, Giacomo La Russa, Marcy Palillo' },
   { id:'agrigento-distanza', mcat:'analisi', tipo:'Analisi', data:'Dicembre 2025', dur:'8 min',   testo:'Agrigento a Distanza — Identità, Istanze e Prospettive dei Fuorisede', desc:'Una ricerca qualitativa su 200 fuorisede agrigentini tra 18 e 40 anni.', autore:'Francesco Trupia' },
 ];
@@ -2300,7 +2340,10 @@ async function fetchAtti() {
     }
   } catch(e) {
     document.getElementById("albo-grid").innerHTML = '<div class="albo-empty"><p>Impossibile caricare gli atti.</p><a class="btn-secondary" href="https://t.me/albopretorioxpigri" target="_blank" style="display:inline-flex;">Vai su Telegram →</a></div>';
-    document.getElementById("home-feed").innerHTML = '<div class="feed-item" onclick="showPage(\'albopop\')" style="cursor:pointer"><div class="feed-title" style="color:var(--gray-dark);font-size:13px;">Feed non disponibile. <a href="https://t.me/albopretorioxpigri" target="_blank" style="color:var(--black);">Vai su Telegram →</a></div></div>';
+    // Anche se l'albo pretorio esterno e' irraggiungibile, il resto del
+    // Civic Radar (talk, analisi, eventi) deve continuare a comparire.
+    renderHomeFeed([]);
+    renderTicker([]);
   }
 }
 
@@ -2431,7 +2474,11 @@ function renderDynamicArticle(id, opts){
   var imgSlot = document.getElementById("dyn-image");
   if(imgSlot){
     var flyerImg = it.flyer || it.img;
-    imgSlot.innerHTML = flyerImg ? '<img src="'+flyerImg+'" alt="Locandina" style="width:100%;max-width:460px;border:2px solid var(--black);margin:20px 0;display:block;">' : '';
+    if(!isEvent && it.youtube){
+      imgSlot.innerHTML = '<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;margin:20px 0;border:2px solid var(--black);"><iframe src="https://www.youtube.com/embed/'+it.youtube+'" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>';
+    } else {
+      imgSlot.innerHTML = flyerImg ? '<img src="'+flyerImg+'" alt="Locandina" style="width:100%;max-width:460px;border:2px solid var(--black);margin:20px 0;display:block;">' : '';
+    }
   }
   document.getElementById("dyn-body").innerHTML = scaroArticleHTML(it.body || it.description || it.desc || '', it.bibliografia || it.bibliography || '');
   var ticketSlot = document.getElementById("dyn-ticket");
