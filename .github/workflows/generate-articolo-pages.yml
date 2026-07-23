@@ -1,0 +1,34 @@
+name: Genera anteprime articoli
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - index.html
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    if: "!contains(github.event.head_commit.message, '[skip og]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Genera articolo/*.html da MEDIA_ITEMS ed EVENTI_FUTURI
+        run: node scripts/generate-articolo-pages.js
+
+      - name: Committa le pagine generate (se cambiate)
+        run: |
+          git config user.name "scaro-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add articolo/
+          if git diff --cached --quiet; then
+            echo "Nessuna pagina da aggiornare."
+          else
+            git commit -m "chore: rigenera anteprime articolo/ [skip og]"
+            git push
+          fi

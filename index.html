@@ -1693,6 +1693,7 @@ footer{background:var(--black);color:var(--white);padding:64px 60px 40px}
 
 /* -- MEDIA LAB: talk / analisi / inchieste / contributi (il primo della lista e' l'articolo grande in Home) -- */
 const MEDIA_ITEMS = [
+  { id:'talk-rifiuti-agrigento', dynamic:true, mcat:'talk', tipo:'Talk', date:'2026-07-22', data:'22 Luglio 2026', dur:'1h 51min', youtube:'ZNtM9eISSAg', testo:'Perché Agrigento è così sporca?', desc:'Perché la città è sporca? Quali sono le ragioni a favore della raccolta differenziata? Cosa sta accadendo nelle discariche siciliane?', body:'Perché la città è sporca? Quali sono le ragioni a favore della raccolta differenziata? Cosa sta accadendo nelle discariche siciliane?\n\nTavola Rotonda con Claudia Casa, Giovanni Vinti, Irene Fucà, Giuseppe Riccobene e Mimmo Fontana.', autore:'Claudia Casa, Giovanni Vinti, Irene Fucà, Giuseppe Riccobene, Mimmo Fontana' },
   { id:'scaristi-01', dynamic:true, mcat:'talk', tipo:'Podcast', date:'2026-07-20', data:'Luglio 2026', dur:'Puntata 1', youtube:'WCmcTbjXqRI', testo:'Gli Scaristi — Puntata 1', desc:'Visto che passare le giornate a litigare nei Social non sembra aver ancora risolto i problemi di Agrigento, abbiamo pensato a una roba folle: vederci dal vivo.', body:'Visto che passare le giornate a litigare nei Social non sembra aver ancora risolto i problemi di Agrigento, abbiamo pensato a una roba folle: vederci dal vivo. Sì, nel 2026 abbiamo azzardato uscire dalle caverne digitali per rispondere alla domanda esistenziale del secolo: servono ancora gli spazi fisici per fare politica? O possiamo continuare a fare la rivoluzione comodamente in pigiama sul divano attraverso i nostri strumenti elettronici?\n\nQuesto è stato l\'argomento della prima puntata del podcast "GLI SCARISTI". I coraggiosi che ci hanno messo la faccia: Mattia Grech (Scaro) e Angelo Nuzzo (Epyc Palermo).\n\nModerano: Carmelo Traina e Davide Amato.\n\nAlla prossima!', autore:'Gli Scaristi' },
   { id:'talk-01', mcat:'talk', tipo:'Talk', date:'2026-06-14', data:'Giugno 2026', dur:'~2 ore', youtube:'gpv8ACqCScc', testo:'Elezioni Comunali Agrigento - 2026 Analisi del voto', desc:'AFFINITÀ E DIVERGENZE TRA NOI E IL COMPAGNO ROBERTO DI MAURO. Dal 1993 a oggi sono passati trentatré anni. Proveremo a fare un\'analisi del voto: convergenze e divergenze tra il 1993 e il 2026.', autore:'Mauro Indelicato, Gaetano Gucciardo, Giacomo La Russa, Marcy Palillo' },
   { id:'agrigento-distanza', mcat:'analisi', tipo:'Analisi', date:'2025-12-01', data:'Dicembre 2025', dur:'8 min',   testo:'Agrigento a Distanza — Identità, Istanze e Prospettive dei Fuorisede', desc:'Una ricerca qualitativa su 200 fuorisede agrigentini tra 18 e 40 anni.', autore:'Francesco Trupia' },
@@ -1705,12 +1706,6 @@ const MEDIA_ITEMS = [
 
 /* -- EVENTI IN ARRIVO -- */
 const EVENTI_FUTURI = [
-  { id:'rifiuti', day:'04', mon:'Luglio', yr:'2026', kind:'Tavola rotonda',
-    title:'La gestione dei rifiuti ad Agrigento',
-    info:['🕖 Ore 19:00', '📍 Scaro', 'Criticità attuali e prospettive future'],
-    flyer:'content/assets/locandina-rifiuti-04-07.png', /* ← locandina evento rifiuti del 4 luglio */
-    price:0, /* ← se l'evento è a pagamento, metti qui il prezzo in euro (es. 5), altrimenti lascia 0 */
-    ics:{ dtstart:'20260704T170000Z', dtend:'20260704T200000Z', summary:'La gestione dei rifiuti ad Agrigento', location:'Scaro Cafè, Agrigento', description:'Una tavola rotonda civica e tecnica sulla gestione dei rifiuti.' } },
   { id:'restare', day:'18', mon:'Luglio', yr:'2026', kind:'Presentazione',
     title:'Non restiamo senza — PattoXrestare',
     info:['🕖 Ore 19:30', '📍 Scaro', 'Campagna del PattoXrestare'],
@@ -1735,6 +1730,12 @@ const EVENTI_FUTURI = [
 
 /* -- EVENTI PASSATI (archivio) -- */
 const EVENTI_PASSATI = [
+  { day:'04', mon:'Luglio', yr:'2026', kind:'Tavola rotonda',
+    title:'La gestione dei rifiuti ad Agrigento',
+    place:'📍 Scaro · ore 19:00',
+    articoli:[
+      {id:'talk-rifiuti-agrigento', ic:'🎙', tt:'Perché Agrigento è così sporca?'}
+    ] },
   { day:'14', mon:'Giugno', yr:'2026', kind:'Talk',
     title:'Analisi del voto: comunali 2026',
     place:'📍 Scaro · ore 20:30',
