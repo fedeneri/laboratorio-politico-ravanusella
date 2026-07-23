@@ -61,10 +61,27 @@ function absUrl(p) {
   return BASE_URL + '/' + String(p).replace(/^\/+/, '');
 }
 
-function itemImage(it) {
+// Se il video e' stato caricato da poco, YouTube potrebbe non aver ancora
+// generato la miniatura ad alta risoluzione (maxresdefault): in quel caso
+// restituisce un placeholder grigio minuscolo, che Facebook scarta come
+// "immagine troppo piccola" e la condivisione resta senza anteprima.
+// hqdefault.jpg (480x360) invece esiste sempre, subito: e' la scelta sicura
+// di default; usiamo maxresdefault solo se verifichiamo che sia quella vera.
+async function youtubeImage(id) {
+  const hq = 'https://img.youtube.com/vi/' + id + '/hqdefault.jpg';
+  const maxres = 'https://img.youtube.com/vi/' + id + '/maxresdefault.jpg';
+  try {
+    const res = await fetch(maxres, { method: 'GET' });
+    const len = parseInt(res.headers.get('content-length') || '0', 10);
+    if (res.ok && len > 10000) return maxres;
+  } catch (e) { /* rete non disponibile: usa il fallback sicuro */ }
+  return hq;
+}
+
+async function itemImage(it) {
   if (it.img) return absUrl(it.img);
   if (it.flyer) return absUrl(it.flyer);
-  if (it.youtube) return 'https://img.youtube.com/vi/' + it.youtube + '/maxresdefault.jpg';
+  if (it.youtube) return youtubeImage(it.youtube);
   return DEFAULT_IMAGE;
 }
 
@@ -116,7 +133,7 @@ function writeIfChanged(file, content) {
   return true;
 }
 
-function main() {
+async function main() {
   const src = fs.readFileSync(INDEX, 'utf8');
   const mediaItems = extractArray(src, 'MEDIA_ITEMS');
   const eventiFuturi = extractArray(src, 'EVENTI_FUTURI');
@@ -125,34 +142,34 @@ function main() {
 
   let written = 0, upToDate = 0;
 
-  mediaItems.forEach(function (it) {
-    if (!it.id) return;
+  for (const it of mediaItems) {
+    if (!it.id) continue;
     const content = renderPage({
       urlId: it.id,
       title: it.testo,
       description: plainText(it.desc || it.body) || DEFAULT_DESC,
-      image: itemImage(it)
+      image: await itemImage(it)
     });
     const changed = writeIfChanged(path.join(OUT_DIR, it.id + '.html'), content);
     if (changed) { written++; console.log('scritto:', 'articolo/' + it.id + '.html'); }
     else upToDate++;
-  });
+  }
 
-  eventiFuturi.forEach(function (ev) {
-    if (!ev.id) return;
+  for (const ev of eventiFuturi) {
+    if (!ev.id) continue;
     const urlId = 'evento-' + ev.id;
     const content = renderPage({
       urlId: urlId,
       title: ev.title,
       description: plainText(ev.description || (ev.ics && ev.ics.description) || (ev.info || []).join(' · ')) || DEFAULT_DESC,
-      image: itemImage(ev)
+      image: await itemImage(ev)
     });
     const changed = writeIfChanged(path.join(OUT_DIR, urlId + '.html'), content);
     if (changed) { written++; console.log('scritto:', 'articolo/' + urlId + '.html'); }
     else upToDate++;
-  });
+  }
 
   console.log((written + upToDate) + ' contenuti controllati — ' + written + ' scritti/aggiornati, ' + upToDate + ' gia\' ok.');
 }
 
-main();
+main().catch(function (e) { console.error(e); process.exit(1); });
