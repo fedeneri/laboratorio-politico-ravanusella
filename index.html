@@ -1422,12 +1422,22 @@ footer{background:var(--black);color:var(--white);padding:64px 60px 40px}
     <p class="pod-desc">Scaro è occupato fino a nuovo ordine. Dopo attente valutazioni interne, abbiamo sostituito la vecchia direzione con una gestione proletaria del servizio.</p>
     <div class="pod-actions">
       <a class="pod-spotify" href="https://www.instagram.com/reel/Da2_BZcIEBF/?utm_source=ig_web_copy_link&amp;igsh=MzRlODBiNWFlZA==" target="_blank" rel="noopener">Guarda il trailer →</a>
-      <span class="pod-count">1 puntata + trailer</span>
+      <span class="pod-count">2 puntate + trailer</span>
     </div>
   </header>
 
   <section class="pod-wrap">
     <div class="pod-grid">
+      <article class="pod-card" style="cursor:pointer" onclick="showArticolo('scaristi-02')">
+        <img class="pod-cover" src="https://img.youtube.com/vi/ha6GxRgq_yE/hqdefault.jpg" alt="Gli Scaristi — Puntata 2">
+        <div>
+          <div class="pod-meta"><span class="pod-chip">Luglio 2026</span><span class="pod-chip dark">Puntata 2</span></div>
+          <h2 class="pod-name">Gli Scaristi — Puntata 2: Di chi è l'ACQUA?</h2>
+          <p class="pod-copy">Nel secondo episodio ci siamo fatti una domanda molto semplice: di chi è l'acqua? Lo abbiamo chiesto a due ospiti eccezionali: Peppe Riccobene, assessore al Comune di Agrigento, e Alvise Gangarossa, ex presidente della consulta di Aica.</p>
+          <a class="pod-link" style="cursor:pointer" onclick="showArticolo('scaristi-02')">Guarda la puntata →</a>
+        </div>
+      </article>
+
       <article class="pod-card" style="cursor:pointer" onclick="showArticolo('scaristi-01')">
         <img class="pod-cover" src="https://img.youtube.com/vi/WCmcTbjXqRI/hqdefault.jpg" alt="Gli Scaristi — Puntata 1">
         <div>
@@ -1693,6 +1703,7 @@ footer{background:var(--black);color:var(--white);padding:64px 60px 40px}
 
 /* -- MEDIA LAB: talk / analisi / inchieste / contributi (il primo della lista e' l'articolo grande in Home) -- */
 const MEDIA_ITEMS = [
+  { id:'scaristi-02', dynamic:true, mcat:'talk', tipo:'Podcast', date:'2026-07-25', data:'Luglio 2026', dur:'1h 12min', youtube:'ha6GxRgq_yE', testo:'Gli Scaristi — Puntata 2: Di chi è l\'ACQUA?', desc:'Di chi è l\'acqua? Ne parliamo con Peppe Riccobene, assessore al Comune di Agrigento, e Alvise Gangarossa, ex presidente della consulta di Aica.', body:'Nel secondo episodio del podcast "Gli Scaristi" ci siamo fatti una domanda molto semplice: di chi è l\'acqua? Lo abbiamo chiesto a due ospiti eccezionali: Peppe Riccobene, assessore al Comune di Agrigento, e Alvise Gangarossa, ex presidente della consulta di Aica. Sentite che cosa ci hanno detto sul problema atavico della nostra regione!', autore:'Gli Scaristi' },
   { id:'talk-rifiuti-agrigento', dynamic:true, mcat:'talk', tipo:'Talk', date:'2026-07-22', data:'22 Luglio 2026', dur:'1h 51min', youtube:'ZNtM9eISSAg', testo:'Perché Agrigento è così sporca?', desc:'Perché la città è sporca? Quali sono le ragioni a favore della raccolta differenziata? Cosa sta accadendo nelle discariche siciliane?', body:'Perché la città è sporca? Quali sono le ragioni a favore della raccolta differenziata? Cosa sta accadendo nelle discariche siciliane?\n\nTavola Rotonda con Claudia Casa, Giovanni Vinti, Irene Fucà, Giuseppe Riccobene e Mimmo Fontana.', autore:'Claudia Casa, Giovanni Vinti, Irene Fucà, Giuseppe Riccobene, Mimmo Fontana' },
   { id:'scaristi-01', dynamic:true, mcat:'talk', tipo:'Podcast', date:'2026-07-20', data:'Luglio 2026', dur:'Puntata 1', youtube:'WCmcTbjXqRI', testo:'Gli Scaristi — Puntata 1', desc:'Visto che passare le giornate a litigare nei Social non sembra aver ancora risolto i problemi di Agrigento, abbiamo pensato a una roba folle: vederci dal vivo.', body:'Visto che passare le giornate a litigare nei Social non sembra aver ancora risolto i problemi di Agrigento, abbiamo pensato a una roba folle: vederci dal vivo. Sì, nel 2026 abbiamo azzardato uscire dalle caverne digitali per rispondere alla domanda esistenziale del secolo: servono ancora gli spazi fisici per fare politica? O possiamo continuare a fare la rivoluzione comodamente in pigiama sul divano attraverso i nostri strumenti elettronici?\n\nQuesto è stato l\'argomento della prima puntata del podcast "GLI SCARISTI". I coraggiosi che ci hanno messo la faccia: Mattia Grech (Scaro) e Angelo Nuzzo (Epyc Palermo).\n\nModerano: Carmelo Traina e Davide Amato.\n\nAlla prossima!', autore:'Gli Scaristi' },
   { id:'talk-01', mcat:'talk', tipo:'Talk', date:'2026-06-14', data:'Giugno 2026', dur:'~2 ore', youtube:'gpv8ACqCScc', testo:'Elezioni Comunali Agrigento - 2026 Analisi del voto', desc:'AFFINITÀ E DIVERGENZE TRA NOI E IL COMPAGNO ROBERTO DI MAURO. Dal 1993 a oggi sono passati trentatré anni. Proveremo a fare un\'analisi del voto: convergenze e divergenze tra il 1993 e il 2026.', autore:'Mauro Indelicato, Gaetano Gucciardo, Giacomo La Russa, Marcy Palillo' },
