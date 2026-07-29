@@ -332,12 +332,72 @@ async function handleCheckin(env, origin, code) {
   return json({ ok: true, buyerName: t.buyerName, eventTitle: t.eventTitle, tierLabel: t.tierLabel }, 200, origin);
 }
 
+// --- Login GitHub per il pannello editoriale (Decap CMS su /admin) ---
+// Serve perche' GitHub richiede uno scambio server-to-server (client_secret)
+// per completare il login OAuth: non si puo' fare solo dal browser.
+// Variabili richieste (mai nel codice/repo): GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET
+// (impostale con `wrangler secret put NOME`).
+function handleCmsAuth(request, env) {
+  if (!env.GITHUB_CLIENT_ID) return new Response('GITHUB_CLIENT_ID non configurato', { status: 500 });
+  const url = new URL(request.url);
+  const redirectUri = url.origin + '/callback';
+  const authUrl = new URL('https://github.com/login/oauth/authorize');
+  authUrl.searchParams.set('client_id', env.GITHUB_CLIENT_ID);
+  authUrl.searchParams.set('redirect_uri', redirectUri);
+  authUrl.searchParams.set('scope', 'repo,user');
+  return Response.redirect(authUrl.toString(), 302);
+}
+
+function cmsAuthPage(status, payload) {
+  const payloadJson = JSON.stringify(payload);
+  const messageLiteral = JSON.stringify('authorization:github:' + status + ':' + payloadJson);
+  const html = '<!doctype html><html><body><script>' +
+    '(function(){' +
+    'function receiveMessage(e){' +
+    'window.opener.postMessage(' + messageLiteral + ', e.origin);' +
+    'window.removeEventListener("message", receiveMessage, false);' +
+    '}' +
+    'window.addEventListener("message", receiveMessage, false);' +
+    'window.opener.postMessage("authorizing:github", "*");' +
+    '})();' +
+    '</script></body></html>';
+  return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+}
+
+async function handleCmsCallback(request, env) {
+  const url = new URL(request.url);
+  const code = url.searchParams.get('code');
+  if (!code) return cmsAuthPage('error', { message: 'Codice mancante nella risposta di GitHub.' });
+
+  const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
+    method: 'POST',
+    headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      client_id: env.GITHUB_CLIENT_ID,
+      client_secret: env.GITHUB_CLIENT_SECRET,
+      code: code
+    })
+  });
+  const tokenData = await tokenRes.json().catch(() => ({}));
+  if (!tokenRes.ok || tokenData.error || !tokenData.access_token) {
+    return cmsAuthPage('error', { message: tokenData.error_description || 'Login GitHub fallito.' });
+  }
+  return cmsAuthPage('success', { token: tokenData.access_token, provider: 'github' });
+}
+
 export default {
   async fetch(request, env) {
     const origin = request.headers.get('Origin') || '';
     const url = new URL(request.url);
 
     if (request.method === 'OPTIONS') return new Response(null, { headers: corsHeaders(origin) });
+
+    if (url.pathname === '/auth' && request.method === 'GET') {
+      return handleCmsAuth(request, env);
+    }
+    if (url.pathname === '/callback' && request.method === 'GET') {
+      return handleCmsCallback(request, env);
+    }
 
     if (url.pathname === '/api/create-order' && request.method === 'POST') {
       return handleCreateOrder(request, env, origin);

@@ -127,6 +127,46 @@ function renderPage(opts) {
 '</html>\n';
 }
 
+// Contenuti pubblicati dal pannello (/admin) via content/talks e content/eventi:
+// scripts/build-content.js li raccoglie in content/scaro-content.js, che
+// index.html carica e fonde con MEDIA_ITEMS/EVENTI_FUTURI a runtime (funzione
+// scaroApplyContent). Qui rifacciamo la stessa normalizzazione dei campi,
+// cosi' anche questi contenuti ottengono la loro pagina di anteprima.
+function loadCmsContent() {
+  const file = path.join(ROOT, 'content', 'scaro-content.js');
+  if (!fs.existsSync(file)) return { news: [], events: [] };
+  const src = fs.readFileSync(file, 'utf8');
+  const m = src.match(/window\.SCARO_CONTENT\s*=\s*([\s\S]*?);\s*$/);
+  if (!m) return { news: [], events: [] };
+  const data = JSON.parse(m[1]);
+  return { news: data.news || [], events: data.events || [] };
+}
+
+function normalizeCmsNews(n) {
+  return {
+    id: n.id,
+    testo: n.testo || n.title,
+    desc: n.desc || n.description || '',
+    body: n.body || n.text || '',
+    youtube: n.youtube || '',
+    img: n.img || n.image || '',
+    flyer: n.flyer || ''
+  };
+}
+
+function normalizeCmsEvent(e) {
+  return {
+    id: e.id,
+    title: e.title,
+    description: e.description || '',
+    body: e.body || e.text || '',
+    flyer: e.flyer || '',
+    img: e.img || e.image || '',
+    info: e.info || [e.time ? 'Ore ' + e.time : '', e.place || '', e.description || ''].filter(Boolean),
+    ics: e.ics || null
+  };
+}
+
 function writeIfChanged(file, content) {
   if (fs.existsSync(file) && fs.readFileSync(file, 'utf8') === content) return false;
   fs.writeFileSync(file, content);
@@ -135,8 +175,9 @@ function writeIfChanged(file, content) {
 
 async function main() {
   const src = fs.readFileSync(INDEX, 'utf8');
-  const mediaItems = extractArray(src, 'MEDIA_ITEMS');
-  const eventiFuturi = extractArray(src, 'EVENTI_FUTURI');
+  const cms = loadCmsContent();
+  const mediaItems = extractArray(src, 'MEDIA_ITEMS').concat(cms.news.map(normalizeCmsNews));
+  const eventiFuturi = extractArray(src, 'EVENTI_FUTURI').concat(cms.events.map(normalizeCmsEvent));
 
   if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
 

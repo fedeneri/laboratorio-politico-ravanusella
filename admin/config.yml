@@ -2,6 +2,70 @@ backend:
   name: github
   repo: fedeneri/laboratorio-politico-ravanusella
   branch: main
-  auth_type: implicit
-  app_id: OV23lieVtR7BqSRSnzDb
-  redirect_uri: https://fedeneri.github.io/laboratorio-politico-ravanusella/admin/
+  base_url: https://scaro-biglietti.scaro.workers.dev
+  auth_endpoint: auth
+
+site_url: https://scaro.it
+display_url: https://scaro.it
+
+media_folder: "content/assets"
+public_folder: "/content/assets"
+
+collections:
+  - name: talks
+    label: "Talk, podcast, articoli"
+    label_singular: "Contenuto"
+    folder: "content/talks"
+    create: true
+    delete: true
+    slug: "{{slug}}"
+    format: json
+    summary: "{{tipo}} — {{testo}}"
+    sortable_fields: ["date", "testo"]
+    fields:
+      - { label: "Titolo", name: testo, widget: string }
+      - label: "Rubrica"
+        name: mcat
+        widget: select
+        options: ["talk", "analisi", "inchiesta", "contributo"]
+        hint: "Determina in quale filtro della home compare"
+      - { label: "Etichetta mostrata", name: tipo, widget: string, hint: "Es. Talk, Podcast, Analisi, Inchiesta..." }
+      - { label: "Data pubblicazione", name: date, widget: datetime, format: "YYYY-MM-DD", date_format: "YYYY-MM-DD", time_format: false }
+      - { label: "Etichetta data (facoltativa)", name: data, widget: string, required: false, hint: "Es. \"Luglio 2026\". Se vuota il sito la genera dalla data sopra" }
+      - { label: "Durata o tempo di lettura", name: dur, widget: string, hint: "Es. \"1h 20min\", \"8 min\"" }
+      - { label: "Video YouTube — solo l'ID", name: youtube, widget: string, required: false, hint: "Dall'URL youtube.com/watch?v=QUESTO-PEZZO" }
+      - { label: "Episodio Spotify — solo l'ID", name: spotify, widget: string, required: false, hint: "Dall'URL open.spotify.com/episode/QUESTO-PEZZO" }
+      - { label: "Immagine di copertina", name: img, widget: image, required: false, hint: "Solo se non c'e' un video: altrimenti si usa la copertina di YouTube" }
+      - { label: "Descrizione breve (per le anteprime)", name: desc, widget: text }
+      - { label: "Testo completo", name: body, widget: markdown, required: false }
+      - { label: "Autore / relatori", name: autore, widget: string }
+      - { label: "Bibliografia", name: bibliografia, widget: text, required: false }
+
+  - name: eventi
+    label: "Eventi in arrivo"
+    label_singular: "Evento"
+    folder: "content/eventi"
+    create: true
+    delete: true
+    slug: "{{slug}}"
+    format: json
+    summary: "{{title}}"
+    sortable_fields: ["date", "title"]
+    fields:
+      - { label: "Titolo evento", name: title, widget: string }
+      - { label: "Tipo", name: kind, widget: string, hint: "Es. Talk, Presentazione, Cabaret, Tavola rotonda..." }
+      - { label: "Data", name: date, widget: datetime, format: "YYYY-MM-DD", date_format: "YYYY-MM-DD", time_format: false }
+      - { label: "Orario", name: time, widget: string, hint: "Es. 19:00", required: false }
+      - { label: "Luogo", name: place, widget: string, default: "Scaro" }
+      - { label: "Descrizione", name: description, widget: text }
+      - { label: "Locandina", name: flyer, widget: image, required: false }
+      - { label: "Prezzo (0 = gratuito)", name: price, widget: number, default: 0, value_type: float }
+      - label: "Biglietti a pagamento (tier)"
+        name: tiers
+        widget: list
+        required: false
+        hint: "Lascia vuoto se l'evento e' gratuito o gestito diversamente"
+        fields:
+          - { label: "Id tier", name: id, widget: string }
+          - { label: "Etichetta", name: label, widget: string }
+          - { label: "Prezzo", name: price, widget: number, value_type: float }

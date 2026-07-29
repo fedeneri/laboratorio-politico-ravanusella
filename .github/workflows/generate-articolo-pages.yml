@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - index.html
+      - "content/talks/**"
+      - "content/eventi/**"
 
 permissions:
   contents: write
@@ -18,17 +20,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Genera articolo/*.html da MEDIA_ITEMS ed EVENTI_FUTURI
+      - name: Ricostruisci content/scaro-content.js dai file del pannello
+        run: node scripts/build-content.js
+
+      - name: Genera articolo/*.html da MEDIA_ITEMS, EVENTI_FUTURI e dai contenuti del pannello
         run: node scripts/generate-articolo-pages.js
 
-      - name: Committa le pagine generate (se cambiate)
+      - name: Committa i file generati (se cambiati)
         run: |
           git config user.name "scaro-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add articolo/
+          git add articolo/ content/scaro-content.js
           if git diff --cached --quiet; then
-            echo "Nessuna pagina da aggiornare."
+            echo "Nessun file da aggiornare."
           else
-            git commit -m "chore: rigenera anteprime articolo/ [skip og]"
+            git commit -m "chore: rigenera contenuti e anteprime [skip og]"
             git push
           fi
