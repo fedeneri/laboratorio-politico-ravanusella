@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#164194">
+<title>Pannello — Scaro</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="content/assets/icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--blue:#164194;--cream:#F4E7DB;--tan:#E8D7BE;--white:#fff;--red:#b3261e;--green:#1b5e20}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--cream);color:var(--blue);min-height:100vh;-webkit-tap-highlight-color:transparent}
+.wrap{max-width:520px;margin:0 auto;padding:28px 20px 60px}
+.head{display:flex;align-items:center;gap:12px;margin-bottom:28px}
+.head img{width:44px;height:44px;border-radius:50%;border:2px solid var(--blue)}
+.head h1{font-family:'Playfair Display',serif;font-weight:900;font-size:22px;letter-spacing:-0.01em}
+.head p{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#5470B6;margin-top:2px}
+.card{background:var(--white);border:3px solid var(--blue);padding:28px 24px;box-shadow:6px 6px 0 var(--blue)}
+.card + .card{margin-top:24px}
+label{display:block;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--blue);margin:18px 0 7px}
+label:first-child{margin-top:0}
+.hint{font-size:12px;color:#666;margin-top:5px;line-height:1.4}
+input[type=text],input[type=password],input[type=date],input[type=number],select,textarea{
+  width:100%;font-family:'IBM Plex Sans',sans-serif;font-size:16px;padding:12px 13px;
+  border:2px solid var(--blue);background:var(--white);color:var(--blue);outline:none;-webkit-appearance:none;appearance:none
+}
+textarea{resize:vertical;min-height:90px}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23164194' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px}
+input:focus,select:focus,textarea:focus{border-color:var(--red)}
+.pin-row{display:flex;gap:10px}
+.pin-row > *{flex:1}
+.type-toggle{display:flex;border:2px solid var(--blue);margin-bottom:4px}
+.type-toggle button{flex:1;padding:13px 8px;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:none;background:var(--white);color:var(--blue);cursor:pointer}
+.type-toggle button + button{border-left:2px solid var(--blue)}
+.type-toggle button.active{background:var(--blue);color:var(--white)}
+.file-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.file-btn{display:inline-flex;align-items:center;gap:8px;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:11px 16px;border:2px solid var(--blue);background:var(--tan);color:var(--blue);cursor:pointer}
+.file-preview{width:64px;height:64px;object-fit:cover;border:2px solid var(--blue);display:none}
+.file-remove{font-size:12px;color:var(--red);text-decoration:underline;cursor:pointer;display:none;background:none;border:none;font-family:inherit}
+button.submit{width:100%;margin-top:24px;font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:16px;border:2px solid var(--blue);background:var(--blue);color:var(--white);cursor:pointer}
+button.submit:active{opacity:.85}
+button.submit:disabled{opacity:.5;cursor:not-allowed}
+button.link{background:none;border:none;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--blue);text-decoration:underline;cursor:pointer;padding:0;margin-top:16px}
+.msg{margin-top:16px;padding:12px 14px;border:2px solid var(--blue);font-size:14px;line-height:1.5;display:none}
+.msg.ok{display:block;background:#d4f4dd;border-color:var(--green);color:var(--green)}
+.msg.err{display:block;background:#fbdcdc;border-color:var(--red);color:var(--red)}
+.who{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#5470B6}
+.who button{background:none;border:none;color:var(--red);text-decoration:underline;cursor:pointer;font-family:inherit;font-size:12px}
+.page{display:none}
+.page.active{display:block}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="head">
+    <img src="content/assets/icons/icon-192.png" alt="Scaro">
+    <div>
+      <h1>Pannello Scaro</h1>
+      <p>Pubblica talk, articoli ed eventi</p>
+    </div>
+  </div>
+
+  <!-- LOGIN -->
+  <div class="page active" id="page-login">
+    <div class="card">
+      <label for="login-name">Il tuo nome</label>
+      <input type="text" id="login-name" autocomplete="username" placeholder="Come ti hanno registrato">
+      <label for="login-pin">PIN</label>
+      <input type="password" id="login-pin" inputmode="numeric" autocomplete="current-password" placeholder="••••">
+      <button class="submit" id="login-btn">Entra</button>
+      <div class="msg" id="login-msg"></div>
+    </div>
+  </div>
+
+  <!-- COMPOSE -->
+  <div class="page" id="page-compose">
+    <div class="who">
+      <span id="who-name"></span>
+      <button id="logout-btn">Esci</button>
+    </div>
+
+    <div class="type-toggle">
+      <button type="button" class="active" data-kind="talk">Talk / Podcast / Articolo</button>
+      <button type="button" data-kind="evento">Evento</button>
+    </div>
+
+    <!-- FORM: TALK -->
+    <div class="card" id="form-talk">
+      <label for="t-testo">Titolo</label>
+      <input type="text" id="t-testo" placeholder="Titolo del talk, della puntata, dell'articolo">
+
+      <label for="t-mcat">Rubrica</label>
+      <select id="t-mcat">
+        <option value="talk">Talk</option>
+        <option value="analisi">Analisi</option>
+        <option value="inchiesta">Inchiesta</option>
+        <option value="contributo">Contributo</option>
+      </select>
+
+      <label for="t-tipo">Etichetta mostrata</label>
+      <input type="text" id="t-tipo" placeholder="Es. Talk, Podcast, Analisi...">
+
+      <label for="t-date">Data</label>
+      <input type="date" id="t-date">
+
+      <label for="t-dur">Durata o tempo di lettura</label>
+      <input type="text" id="t-dur" placeholder="Es. 1h 20min, 8 min">
+
+      <label for="t-youtube">Link o ID video YouTube (facoltativo)</label>
+      <input type="text" id="t-youtube" placeholder="Incolla qui il link YouTube">
+      <div class="hint">Se c'è un video, la miniatura diventa l'immagine automaticamente: non serve caricarne un'altra.</div>
+
+      <label for="t-spotify">Link o ID episodio Spotify (facoltativo)</label>
+      <input type="text" id="t-spotify" placeholder="Incolla qui il link Spotify">
+
+      <label>Immagine di copertina (facoltativa)</label>
+      <div class="file-row">
+        <button type="button" class="file-btn" id="t-img-btn">📷 Scatta o scegli</button>
+        <img class="file-preview" id="t-img-preview">
+        <button type="button" class="file-remove" id="t-img-remove">rimuovi</button>
+      </div>
+      <input type="file" accept="image/*" capture="environment" id="t-img-input" style="display:none">
+
+      <label for="t-desc">Descrizione breve</label>
+      <textarea id="t-desc" placeholder="Qualche riga per l'anteprima"></textarea>
+
+      <label for="t-body">Testo completo (facoltativo)</label>
+      <textarea id="t-body" placeholder="Se serve un articolo più lungo"></textarea>
+
+      <label for="t-autore">Autore / relatori</label>
+      <input type="text" id="t-autore">
+    </div>
+
+    <!-- FORM: EVENTO -->
+    <div class="card" id="form-evento" style="display:none">
+      <label for="e-title">Titolo evento</label>
+      <input type="text" id="e-title">
+
+      <label for="e-kind">Tipo</label>
+      <input type="text" id="e-kind" placeholder="Es. Talk, Presentazione, Cabaret...">
+
+      <label for="e-date">Data</label>
+      <input type="date" id="e-date">
+
+      <label for="e-time">Orario</label>
+      <input type="text" id="e-time" placeholder="Es. 19:00">
+
+      <label for="e-place">Luogo</label>
+      <input type="text" id="e-place" value="Scaro">
+
+      <label for="e-description">Descrizione</label>
+      <textarea id="e-description"></textarea>
+
+      <label>Locandina (facoltativa)</label>
+      <div class="file-row">
+        <button type="button" class="file-btn" id="e-img-btn">📷 Scatta o scegli</button>
+        <img class="file-preview" id="e-img-preview">
+        <button type="button" class="file-remove" id="e-img-remove">rimuovi</button>
+      </div>
+      <input type="file" accept="image/*" capture="environment" id="e-img-input" style="display:none">
+
+      <label for="e-price">Prezzo (0 = gratuito)</label>
+      <input type="number" id="e-price" min="0" step="0.01" value="0">
+    </div>
+
+    <button class="submit" id="publish-btn">Pubblica</button>
+    <div class="msg" id="publish-msg"></div>
+  </div>
+</div>
+
+<script>
+const API_BASE = 'https://scaro-biglietti.scaro.workers.dev';
+const LS_KEY = 'scaro_pannello_login';
+
+function showPage(id){
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+  document.getElementById(id).classList.add('active');
+}
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+
+function getSession(){
+  try { return JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch(e){ return null; }
+}
+function setSession(name, pin){
+  localStorage.setItem(LS_KEY, JSON.stringify({ name: name, pin: pin }));
+}
+function clearSession(){
+  localStorage.removeItem(LS_KEY);
+}
+
+function enterCompose(session){
+  document.getElementById('who-name').textContent = session.name;
+  document.getElementById('t-date').value = todayISO();
+  document.getElementById('e-date').value = todayISO();
+  showPage('page-compose');
+}
+
+(function init(){
+  const s = getSession();
+  if (s && s.name && s.pin) enterCompose(s);
+})();
+
+document.getElementById('login-btn').onclick = function(){
+  const name = document.getElementById('login-name').value.trim();
+  const pin = document.getElementById('login-pin').value.trim();
+  const msg = document.getElementById('login-msg');
+  if (!name || !pin){ msg.className = 'msg err'; msg.textContent = 'Inserisci nome e PIN.'; return; }
+  setSession(name, pin);
+  msg.className = 'msg';
+  enterCompose({ name: name, pin: pin });
+};
+
+document.getElementById('logout-btn').onclick = function(){
+  clearSession();
+  document.getElementById('login-pin').value = '';
+  showPage('page-login');
+};
+
+document.querySelectorAll('.type-toggle button').forEach(function(btn){
+  btn.onclick = function(){
+    document.querySelectorAll('.type-toggle button').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    const kind = btn.dataset.kind;
+    document.getElementById('form-talk').style.display = kind === 'talk' ? '' : 'none';
+    document.getElementById('form-evento').style.display = kind === 'evento' ? '' : 'none';
+  };
+});
+
+function extractYoutubeId(v){
+  v = (v || '').trim();
+  if (!v) return '';
+  const m = v.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : v;
+}
+function extractSpotifyId(v){
+  v = (v || '').trim();
+  if (!v) return '';
+  const m = v.match(/episode\/([A-Za-z0-9]+)/);
+  return m ? m[1] : v;
+}
+
+function wireImagePicker(prefix){
+  const btn = document.getElementById(prefix + '-img-btn');
+  const input = document.getElementById(prefix + '-img-input');
+  const preview = document.getElementById(prefix + '-img-preview');
+  const remove = document.getElementById(prefix + '-img-remove');
+  btn.onclick = function(){ input.click(); };
+  input.onchange = function(){
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(){
+      preview.src = reader.result;
+      preview.style.display = 'inline-block';
+      remove.style.display = 'inline-block';
+    };
+    reader.readAsDataURL(file);
+  };
+  remove.onclick = function(){
+    input.value = '';
+    preview.src = '';
+    preview.style.display = 'none';
+    remove.style.display = 'none';
+  };
+}
+wireImagePicker('t');
+wireImagePicker('e');
+
+function readImage(prefix){
+  return new Promise(function(resolve){
+    const input = document.getElementById(prefix + '-img-input');
+    const file = input.files && input.files[0];
+    if (!file) return resolve(null);
+    const reader = new FileReader();
+    reader.onload = function(){
+      const base64 = reader.result.split(',')[1];
+      const ext = (file.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
+      resolve({ base64: base64, ext: ext });
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+document.getElementById('publish-btn').onclick = async function(){
+  const session = getSession();
+  const msg = document.getElementById('publish-msg');
+  const btn = document.getElementById('publish-btn');
+  const kind = document.querySelector('.type-toggle button.active').dataset.kind;
+
+  let fields, image;
+  if (kind === 'talk'){
+    fields = {
+      testo: document.getElementById('t-testo').value.trim(),
+      mcat: document.getElementById('t-mcat').value,
+      tipo: document.getElementById('t-tipo').value.trim(),
+      date: document.getElementById('t-date').value,
+      dur: document.getElementById('t-dur').value.trim(),
+      youtube: extractYoutubeId(document.getElementById('t-youtube').value),
+      spotify: extractSpotifyId(document.getElementById('t-spotify').value),
+      desc: document.getElementById('t-desc').value.trim(),
+      body: document.getElementById('t-body').value.trim(),
+      autore: document.getElementById('t-autore').value.trim()
+    };
+    image = await readImage('t');
+  } else {
+    fields = {
+      title: document.getElementById('e-title').value.trim(),
+      kind: document.getElementById('e-kind').value.trim(),
+      date: document.getElementById('e-date').value,
+      time: document.getElementById('e-time').value.trim(),
+      place: document.getElementById('e-place').value.trim(),
+      description: document.getElementById('e-description').value.trim(),
+      price: document.getElementById('e-price').value
+    };
+    image = await readImage('e');
+  }
+
+  const titleCheck = kind === 'talk' ? fields.testo : fields.title;
+  if (!titleCheck){
+    msg.className = 'msg err';
+    msg.textContent = 'Manca il titolo.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Pubblico…';
+  msg.className = 'msg';
+
+  try {
+    const payload = { name: session.name, pin: session.pin, kind: kind, fields: fields };
+    if (image){ payload.imageBase64 = image.base64; payload.imageExt = image.ext; }
+    const res = await fetch(API_BASE + '/api/cms/publish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json().catch(function(){ return {}; });
+    if (!res.ok || !data.ok){
+      if (res.status === 401){
+        msg.className = 'msg err';
+        msg.textContent = 'Nome o PIN non corretti.';
+      } else {
+        msg.className = 'msg err';
+        msg.textContent = 'Non è andata: ' + (data.error || 'errore sconosciuto') + '. Riprova tra poco.';
+      }
+      return;
+    }
+    msg.className = 'msg ok';
+    msg.textContent = '✓ Pubblicato! Sarà online sul sito tra un paio di minuti.';
+    document.querySelectorAll('#form-talk input, #form-talk textarea, #form-evento input, #form-evento textarea').forEach(function(el){
+      if (el.type !== 'date') el.value = '';
+    });
+    document.getElementById('t-img-remove').click();
+    document.getElementById('e-img-remove').click();
+    document.getElementById('t-date').value = todayISO();
+    document.getElementById('e-date').value = todayISO();
+    document.getElementById('t-mcat').value = 'talk';
+    document.getElementById('e-place').value = 'Scaro';
+    document.getElementById('e-price').value = '0';
+  } catch (e) {
+    msg.className = 'msg err';
+    msg.textContent = 'Errore di connessione. Controlla internet e riprova.';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Pubblica';
+  }
+};
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/service-worker.js').catch(function(){});
+}
+</script>
+</body>
+</html>

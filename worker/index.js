@@ -28,6 +28,17 @@
  *                                        protegge la lista degli acquirenti
  *                                        (contiene email e nomi: non deve
  *                                        essere pubblica)
+ *   GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET -> app OAuth GitHub, per il login
+ *                                        al pannello editoriale su /admin
+ *   GITHUB_PAT                        -> Personal Access Token GitHub (solo
+ *                                        permesso "Contents" in scrittura sul
+ *                                        repo), usato dal pannello semplificato
+ *                                        pannello.html per pubblicare a nome
+ *                                        del sistema (i soci non hanno un
+ *                                        account GitHub proprio)
+ *   SOCI_CREDENTIALS                  -> JSON tipo {"Mario":"1234","Anna":"5678"}
+ *                                        con nome e PIN di chi puo' pubblicare
+ *                                        da pannello.html
  *
  * Richiede inoltre un KV namespace collegato con binding "TICKETS"
  * (vedi wrangler.toml).
@@ -385,12 +396,112 @@ async function handleCmsCallback(request, env) {
   return cmsAuthPage('success', { token: tokenData.access_token, provider: 'github' });
 }
 
+// --- Pannello semplificato (pannello.html) per i soci senza account GitHub ---
+// Loro fanno login con nome + PIN (SOCI_CREDENTIALS); il Worker pubblica per
+// loro sul repo usando un token proprio (GITHUB_PAT), quindi lato GitHub
+// risulta tutto pubblicato "dal sistema", non da un utente vero.
+const REPO = 'fedeneri/laboratorio-politico-ravanusella';
+
+function slugify(s) {
+  return String(s || '')
+    .toLowerCase()
+    .normalize('NFD').split('').filter(function(ch){ return ch.charCodeAt(0) < 128; }).join('')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60) || ('contenuto-' + Date.now());
+}
+
+function utf8ToBase64(str) {
+  const bytes = new TextEncoder().encode(str);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+function checkSocio(env, name, pin) {
+  let creds = {};
+  try { creds = JSON.parse(env.SOCI_CREDENTIALS || '{}'); } catch (e) { /* config mancante o malformata */ }
+  return !!name && !!pin && creds[name] && creds[name] === pin;
+}
+
+async function ghPutFile(env, path, base64Content, message) {
+  const res = await fetch('https://api.github.com/repos/' + REPO + '/contents/' + path, {
+    method: 'PUT',
+    headers: {
+      'Authorization': 'token ' + env.GITHUB_PAT,
+      'Accept': 'application/vnd.github+json',
+      'User-Agent': 'scaro-pannello',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ message: message, content: base64Content, branch: 'main' })
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    const err = new Error('github-put-failed');
+    err.status = res.status;
+    err.detail = detail;
+    throw err;
+  }
+  return res.json();
+}
+
+const TALK_FIELDS = ['mcat', 'tipo', 'date', 'data', 'dur', 'youtube', 'spotify', 'desc', 'body', 'autore'];
+const EVENTO_FIELDS = ['kind', 'date', 'time', 'place', 'description', 'price'];
+
+async function handleCmsPublish(request, env, origin) {
+  if (!env.GITHUB_PAT) return json({ ok: false, error: 'GITHUB_PAT non configurato' }, 500, origin);
+  const body = await request.json().catch(() => null);
+  if (!body || !body.kind || !body.fields) return json({ ok: false, error: 'bad-request' }, 400, origin);
+  if (!checkSocio(env, body.name, body.pin)) return json({ ok: false, error: 'unauthorized' }, 401, origin);
+  if (body.kind !== 'talk' && body.kind !== 'evento') return json({ ok: false, error: 'bad-kind' }, 400, origin);
+
+  const isTalk = body.kind === 'talk';
+  const titleSrc = isTalk ? body.fields.testo : body.fields.title;
+  if (!titleSrc || !String(titleSrc).trim()) return json({ ok: false, error: 'titolo mancante' }, 400, origin);
+
+  const slug = slugify(titleSrc) + '-' + Math.random().toString(36).slice(2, 6);
+  const allowedFields = isTalk ? TALK_FIELDS : EVENTO_FIELDS;
+  const data = { id: slug };
+  if (isTalk) data.testo = String(titleSrc).trim(); else data.title = String(titleSrc).trim();
+  allowedFields.forEach(function (f) {
+    const v = body.fields[f];
+    if (v === undefined || v === null || v === '') return;
+    data[f] = f === 'price' ? (Number(v) || 0) : v;
+  });
+
+  if (body.imageBase64) {
+    const ext = (body.imageExt || 'jpg').replace(/[^a-z0-9]/gi, '') || 'jpg';
+    const imgPath = 'content/assets/' + slug + '.' + ext;
+    try {
+      await ghPutFile(env, imgPath, body.imageBase64, 'Immagine per ' + slug + ' (da ' + body.name + ')');
+    } catch (e) {
+      return json({ ok: false, error: 'upload-immagine-fallito', detail: e.detail || String(e) }, e.status || 502, origin);
+    }
+    if (isTalk) data.img = imgPath; else data.flyer = imgPath;
+  }
+
+  const folder = isTalk ? 'content/talks' : 'content/eventi';
+  const jsonPath = folder + '/' + slug + '.json';
+  const contentB64 = utf8ToBase64(JSON.stringify(data, null, 2) + '\n');
+  try {
+    await ghPutFile(env, jsonPath, contentB64, (isTalk ? 'Nuovo contenuto' : 'Nuovo evento') + ': ' + titleSrc + ' (da ' + body.name + ')');
+  } catch (e) {
+    return json({ ok: false, error: 'pubblicazione-fallita', detail: e.detail || String(e) }, e.status || 502, origin);
+  }
+
+  return json({ ok: true, id: slug }, 200, origin);
+}
+
 export default {
   async fetch(request, env) {
     const origin = request.headers.get('Origin') || '';
     const url = new URL(request.url);
 
     if (request.method === 'OPTIONS') return new Response(null, { headers: corsHeaders(origin) });
+
+    if (url.pathname === '/api/cms/publish' && request.method === 'POST') {
+      return handleCmsPublish(request, env, origin);
+    }
 
     if (url.pathname === '/auth' && request.method === 'GET') {
       return handleCmsAuth(request, env);
