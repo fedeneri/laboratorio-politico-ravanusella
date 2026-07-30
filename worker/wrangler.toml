@@ -2,6 +2,12 @@ name = "scaro-biglietti"
 main = "index.js"
 compatibility_date = "2024-11-01"
 
+# Fissato esplicitamente perché il login di wrangler oscilla tra due account
+# Cloudflare collegati alla stessa email (Info@localimpactaps.org e
+# Fedeneri.fm@gmail.com): senza questa riga, i comandi a volte indovinano
+# quello sbagliato. Questo e' l'account dove vive il sito vero (scaro.it).
+account_id = "35008dd6cbd5ec28715d2dec0f9e14d3"
+
 # Crea il namespace con: wrangler kv namespace create TICKETS
 # e incolla qui l'id che ti restituisce.
 kv_namespaces = [
