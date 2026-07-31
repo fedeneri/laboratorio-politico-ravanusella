@@ -139,7 +139,7 @@ async function paypalCaptureOrder(env, orderId) {
   return res.json();
 }
 
-async function sendTicketEmail(env, { to, codes, eventTitle, tierLabel, verifyUrlBase }) {
+async function sendTicketEmail(env, { to, codes, eventTitle, tierLabel, verifyUrlBase, resend }) {
   const ticketBlocks = codes.map(function(code){
     const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=' + encodeURIComponent(verifyUrlBase + code);
     return '<div style="border-top:1px solid #ddd;padding:20px 0;">' +
@@ -150,6 +150,7 @@ async function sendTicketEmail(env, { to, codes, eventTitle, tierLabel, verifyUr
   const html =
     '<div style="font-family:sans-serif;max-width:480px;margin:0 auto;border:2px solid #164194;padding:24px;">' +
     '<h1 style="color:#164194;font-size:20px;margin:0 0 12px;">' + (codes.length > 1 ? 'I tuoi ' + codes.length + ' biglietti Scaro' : 'Il tuo biglietto Scaro') + '</h1>' +
+    (resend ? '<p style="margin:0 0 12px;color:#555;">Ti rimandiamo il tuo biglietto per sicurezza, nel caso non l\'avessi ricevuto o scaricato la prima volta.</p>' : '') +
     '<p style="margin:0 0 4px;"><b>' + eventTitle + '</b></p>' +
     '<p style="margin:0 0 8px;color:#555;">' + tierLabel + '</p>' +
     ticketBlocks +
@@ -164,7 +165,7 @@ async function sendTicketEmail(env, { to, codes, eventTitle, tierLabel, verifyUr
     body: JSON.stringify({
       from: env.RESEND_FROM || 'Scaro <onboarding@resend.dev>',
       to: [to],
-      subject: (codes.length > 1 ? 'I tuoi biglietti' : 'Il tuo biglietto') + ' — ' + eventTitle,
+      subject: (resend ? '[Reinvio] ' : '') + (codes.length > 1 ? 'I tuoi biglietti' : 'Il tuo biglietto') + ' — ' + eventTitle,
       html: html
     })
   });
@@ -427,6 +428,55 @@ async function handleReconcile(request, env, origin) {
   }, 200, origin);
 }
 
+async function handleResendTickets(request, env, origin) {
+  if (!env.RECONCILE_KEY) return json({ ok: false, error: 'RECONCILE_KEY non configurato' }, 500, origin);
+  const key = request.headers.get('X-Reconcile-Key') || '';
+  if (key !== env.RECONCILE_KEY) return json({ ok: false, error: 'unauthorized' }, 401, origin);
+
+  const dryRun = new URL(request.url).searchParams.get('dryRun') === '1';
+
+  const list = await env.TICKETS.list({ prefix: 'ticket:' });
+  const all = await Promise.all(list.keys.map(async (k) => {
+    const raw = await env.TICKETS.get(k.name);
+    if (!raw) return null;
+    const t = JSON.parse(raw);
+    return Object.assign({ code: k.name.replace(/^ticket:/, '') }, t);
+  }));
+
+  const groups = {};
+  all.filter(Boolean).forEach(function (t) {
+    if (!t.buyerEmail) return;
+    if (t.tierId === 'test' || (t.tierLabel || '').toUpperCase().indexOf('TEST') !== -1) return;
+    const gKey = t.orderId + '|' + t.buyerEmail;
+    if (!groups[gKey]) groups[gKey] = { buyerEmail: t.buyerEmail, buyerName: t.buyerName, eventTitle: t.eventTitle, tierLabel: t.tierLabel, codes: [] };
+    groups[gKey].codes.push(t.code);
+  });
+
+  const groupList = Object.values(groups);
+  if (dryRun) {
+    return json({ ok: true, dryRun: true, gruppiDaInviare: groupList.length, destinatari: groupList.map(function (g) { return { email: g.buyerEmail, nome: g.buyerName, biglietti: g.codes.length, evento: g.eventTitle }; }) }, 200, origin);
+  }
+
+  const risultati = [];
+  for (const g of groupList) {
+    try {
+      const r = await sendTicketEmail(env, {
+        to: g.buyerEmail,
+        codes: g.codes,
+        eventTitle: g.eventTitle || 'Evento Scaro',
+        tierLabel: g.tierLabel || '',
+        verifyUrlBase: 'https://scaro.it/verifica.html?c=',
+        resend: true
+      });
+      risultati.push({ email: g.buyerEmail, ok: r.ok, detail: r.detail || '' });
+    } catch (e) {
+      risultati.push({ email: g.buyerEmail, ok: false, detail: String(e) });
+    }
+  }
+  const inviate = risultati.filter(function (r) { return r.ok; }).length;
+  return json({ ok: true, inviate: inviate, fallite: risultati.length - inviate, risultati: risultati }, 200, origin);
+}
+
 async function handleReconcileTickets(request, env, origin) {
   if (!env.RECONCILE_KEY) return json({ ok: false, error: 'RECONCILE_KEY non configurato' }, 500, origin);
   const key = request.headers.get('X-Reconcile-Key') || '';
@@ -616,6 +666,9 @@ export default {
     }
     if (url.pathname === '/api/reconcile-tickets' && request.method === 'GET') {
       return handleReconcileTickets(request, env, origin);
+    }
+    if (url.pathname === '/api/resend-tickets' && request.method === 'POST') {
+      return handleResendTickets(request, env, origin);
     }
 
     if (url.pathname === '/auth' && request.method === 'GET') {
