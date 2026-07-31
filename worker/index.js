@@ -343,6 +343,90 @@ async function handleCheckin(env, origin, code) {
   return json({ ok: true, buyerName: t.buyerName, eventTitle: t.eventTitle, tierLabel: t.tierLabel }, 200, origin);
 }
 
+// --- Riconciliazione PayPal <-> biglietti generati ---
+// Trova pagamenti realmente arrivati su PayPal per cui il nostro sistema
+// NON ha generato nessun biglietto (capture riuscita lato PayPal ma la
+// risposta non e' mai arrivata al browser dell'acquirente, o la chiamata
+// finale non e' mai partita). Protetto da RECONCILE_KEY.
+async function paypalListTransactions(env, startDate, endDate) {
+  const base = env.PAYPAL_API_BASE || 'https://api-m.paypal.com';
+  const token = await paypalToken(env);
+  const results = [];
+  let page = 1;
+  for (;;) {
+    const url = base + '/v1/reporting/transactions'
+      + '?start_date=' + encodeURIComponent(startDate)
+      + '&end_date=' + encodeURIComponent(endDate)
+      + '&fields=all&page_size=100&page=' + page;
+    const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '');
+      const err = new Error('paypal-reporting-failed');
+      err.status = res.status;
+      err.detail = detail;
+      throw err;
+    }
+    const data = await res.json();
+    (data.transaction_details || []).forEach(function (t) {
+      const info = t.transaction_info || {};
+      results.push({
+        orderId: info.paypal_reference_id || info.transaction_id || '',
+        transactionId: info.transaction_id || '',
+        status: info.transaction_status || '',
+        amount: info.transaction_amount ? info.transaction_amount.value : '',
+        currency: info.transaction_amount ? info.transaction_amount.currency_code : '',
+        date: info.transaction_initiation_date || '',
+        customId: info.custom_field || '',
+        payerName: t.payer_info && t.payer_info.payer_name
+          ? [t.payer_info.payer_name.given_name, t.payer_info.payer_name.surname].filter(Boolean).join(' ')
+          : '',
+        payerEmail: t.payer_info ? t.payer_info.email_address || '' : ''
+      });
+    });
+    const totalPages = data.total_pages || 1;
+    if (page >= totalPages) break;
+    page++;
+  }
+  return results;
+}
+
+async function handleReconcile(request, env, origin) {
+  if (!env.RECONCILE_KEY) return json({ ok: false, error: 'RECONCILE_KEY non configurato' }, 500, origin);
+  const key = request.headers.get('X-Reconcile-Key') || '';
+  if (key !== env.RECONCILE_KEY) return json({ ok: false, error: 'unauthorized' }, 401, origin);
+
+  const url = new URL(request.url);
+  const days = Math.min(31, Math.max(1, parseInt(url.searchParams.get('days'), 10) || 30));
+  const end = new Date();
+  const start = new Date(end.getTime() - days * 24 * 60 * 60 * 1000);
+  const fmt = function (d) { return d.toISOString().slice(0, 19) + '-0000'; };
+
+  let transactions;
+  try {
+    transactions = await paypalListTransactions(env, fmt(start), fmt(end));
+  } catch (e) {
+    return json({ ok: false, error: 'paypal-reporting-failed', detail: e.detail || String(e), status: e.status }, e.status || 502, origin);
+  }
+
+  const completed = transactions.filter(function (t) {
+    return t.status === 'S' || t.status === 'COMPLETED';
+  });
+
+  const missing = [];
+  for (const t of completed) {
+    const existing = t.orderId ? await env.TICKETS.get('order:' + t.orderId) : null;
+    if (!existing) missing.push(t);
+  }
+
+  return json({
+    ok: true,
+    periodo: { da: start.toISOString(), a: end.toISOString() },
+    transazioniCompletate: completed.length,
+    ordiniSenzaBiglietto: missing.length,
+    dettaglio: missing
+  }, 200, origin);
+}
+
 // --- Login GitHub per il pannello editoriale (Decap CMS su /admin) ---
 // Serve perche' GitHub richiede uno scambio server-to-server (client_secret)
 // per completare il login OAuth: non si puo' fare solo dal browser.
@@ -501,6 +585,10 @@ export default {
 
     if (url.pathname === '/api/cms/publish' && request.method === 'POST') {
       return handleCmsPublish(request, env, origin);
+    }
+
+    if (url.pathname === '/api/reconcile' && request.method === 'GET') {
+      return handleReconcile(request, env, origin);
     }
 
     if (url.pathname === '/auth' && request.method === 'GET') {
