@@ -59,7 +59,7 @@ document.getElementById('load-btn').onclick = function(){
       status.textContent = '';
       // Nascondi gli acquisti di prova (nostri/test interni) dal riepilogo:
       // i biglietti restano comunque validi, spariscono solo da questa vista.
-      var excludedEmails = ['fedeneri.fm', 'carla.marchetta'];
+      var excludedEmails = ['fedeneri.fm'];
       var tickets = (res.data.tickets || []).filter(function(t){
         var email = (t.buyerEmail || '').toLowerCase();
         return !excludedEmails.some(function(ex){ return email.indexOf(ex) !== -1; });
