@@ -427,6 +427,30 @@ async function handleReconcile(request, env, origin) {
   }, 200, origin);
 }
 
+async function handleReconcileTickets(request, env, origin) {
+  if (!env.RECONCILE_KEY) return json({ ok: false, error: 'RECONCILE_KEY non configurato' }, 500, origin);
+  const key = request.headers.get('X-Reconcile-Key') || '';
+  if (key !== env.RECONCILE_KEY) return json({ ok: false, error: 'unauthorized' }, 401, origin);
+
+  const list = await env.TICKETS.list({ prefix: 'ticket:' });
+  const tickets = await Promise.all(list.keys.map(async (k) => {
+    const raw = await env.TICKETS.get(k.name);
+    if (!raw) return null;
+    const t = JSON.parse(raw);
+    return {
+      code: k.name.replace(/^ticket:/, ''),
+      eventId: t.eventId,
+      eventTitle: t.eventTitle,
+      tierId: t.tierId,
+      tierLabel: t.tierLabel,
+      buyerName: t.buyerName,
+      orderId: t.orderId,
+      createdAt: t.createdAt
+    };
+  }));
+  return json({ ok: true, tickets: tickets.filter(Boolean) }, 200, origin);
+}
+
 // --- Login GitHub per il pannello editoriale (Decap CMS su /admin) ---
 // Serve perche' GitHub richiede uno scambio server-to-server (client_secret)
 // per completare il login OAuth: non si puo' fare solo dal browser.
@@ -589,6 +613,9 @@ export default {
 
     if (url.pathname === '/api/reconcile' && request.method === 'GET') {
       return handleReconcile(request, env, origin);
+    }
+    if (url.pathname === '/api/reconcile-tickets' && request.method === 'GET') {
+      return handleReconcileTickets(request, env, origin);
     }
 
     if (url.pathname === '/auth' && request.method === 'GET') {
