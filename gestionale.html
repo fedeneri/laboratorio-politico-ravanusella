@@ -5,57 +5,68 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gestionale — Scaro</title>
 <meta name="robots" content="noindex,nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+:root{
+  --blue:#164194;--cream:#F4E7DB;--yellow:#F2B708;--red:#D96552;
+  --warm:#E8D7BE;--soft:#F8EFE2;
+  --font-display:'Playfair Display',Georgia,serif;
+  --font-body:'IBM Plex Sans',sans-serif;
+  --font-mono:'IBM Plex Mono',monospace;
+}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Arial,sans-serif;background:#F4E7DB;color:#164194;min-height:100vh;padding:20px 12px}
-.card{max-width:480px;width:100%;margin:0 auto;border:3px solid #164194;background:#fff;padding:24px}
-h1{font-size:16px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:16px;text-align:center}
-label{display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 6px}
-input[type=text],input[type=password]{width:100%;font-family:inherit;font-size:16px;padding:12px;border:2px solid #164194}
+body{font-family:var(--font-body);background:var(--cream);color:var(--blue);min-height:100vh;padding:24px 14px}
+.card{max-width:480px;width:100%;margin:0 auto;border:1px solid var(--blue);background:#fff;padding:26px;box-shadow:6px 6px 0 var(--blue)}
+h1{font-family:var(--font-display);font-weight:900;font-style:italic;font-size:22px;letter-spacing:.01em;margin-bottom:18px;text-align:center;color:var(--blue)}
+label{display:block;font-family:var(--font-mono);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin:16px 0 7px;color:var(--blue)}
+input[type=text],input[type=password]{width:100%;font-family:var(--font-body);font-size:16px;padding:12px 14px;border:1px solid var(--blue);background:var(--soft)}
+input[type=text]:focus,input[type=password]:focus{outline:2px solid var(--yellow);outline-offset:-1px}
 .tiers,.pay{display:flex;flex-direction:column;gap:8px}
-.opt{display:flex;align-items:center;gap:10px;border:2px solid #164194;padding:12px;cursor:pointer}
+.opt{display:flex;align-items:center;gap:10px;border:1px solid var(--blue);padding:13px 14px;cursor:pointer;background:#fff;transition:background .12s}
 .opt input{width:18px;height:18px}
-.opt.selected{background:#E8D7BE}
-.opt .lbl{font-size:14px;font-weight:700}
-.opt .price{margin-left:auto;font-family:monospace;font-size:15px}
-button{font-family:inherit;font-size:14px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:14px 22px;border:2px solid #164194;background:#164194;color:#F4E7DB;cursor:pointer;width:100%;margin-top:16px}
-button:active{opacity:.8}
-button:disabled{opacity:.5;cursor:not-allowed}
-button.secondary{background:#E8D7BE;color:#164194}
-.status{margin-top:14px;font-size:14px}
-.bad{color:#b3261e;font-weight:600}
-.ok-text{color:#1b5e20;font-weight:700}
+.opt.selected{background:var(--warm)}
+.opt .lbl{font-family:var(--font-body);font-weight:600;font-size:14px}
+.opt .price{margin-left:auto;font-family:var(--font-mono);font-size:15px;font-weight:600}
+button{font-family:var(--font-mono);font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:14px 22px;border:1px solid var(--blue);background:var(--blue);color:var(--cream);cursor:pointer;width:100%;margin-top:18px;transition:transform .08s}
+button:active:not(:disabled){transform:translateY(1px)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.secondary{background:#fff;color:var(--blue)}
+.status{margin-top:14px;font-family:var(--font-mono);font-size:13px}
+.bad{color:var(--red);font-weight:600}
+.ok-text{color:#1b5e20;font-weight:600}
 .result{text-align:center}
-.code{font-family:monospace;font-size:26px;letter-spacing:3px;font-weight:900;margin:14px 0;padding:16px;border:3px solid #1b5e20;background:#d4f4dd;color:#1b5e20}
-.code.pending{border-color:#b3261e;background:#fbdcdc;color:#b3261e}
-.info{font-size:13px;color:#444;margin-bottom:6px;line-height:1.5}
-.nav{display:flex;flex-wrap:wrap;gap:5px;max-width:480px;margin:0 auto 12px}
-.nav-btn{flex:1;min-width:70px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;padding:9px 3px;border:2px solid #164194;background:#fff;cursor:pointer;color:#164194}
-.nav-btn.active{background:#164194;color:#F4E7DB}
-.qty-row{display:flex;align-items:center;gap:14px;margin-bottom:4px}
-.qty-row button{width:44px;margin:0;padding:10px}
-.qty-value{font-family:monospace;font-size:20px;font-weight:900;min-width:28px;text-align:center}
-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}
-th,td{border:1px solid #164194;padding:6px 7px;text-align:left;vertical-align:top}
-th{background:#164194;color:#F4E7DB;font-size:10px;text-transform:uppercase}
-tr:nth-child(even){background:#F8EFE2}
-.used-yes{color:#1b5e20;font-weight:700}
-.used-no{color:#b3261e;font-weight:700}
-.summary{font-family:monospace;font-size:12px;color:#444;margin-bottom:10px}
-.del-btn{width:auto;margin:0;padding:5px 8px;font-size:10px;background:#fbdcdc;border-color:#b3261e;color:#b3261e}
-#session-summary{margin-top:20px;padding-top:14px;border-top:2px dashed #164194}
-#session-summary h2{font-size:11px;letter-spacing:.05em;text-transform:uppercase;margin-bottom:8px}
-.sum-row{display:flex;justify-content:space-between;font-size:13px;padding:3px 0}
-.sum-row b{font-family:monospace}
-.sum-list{max-height:140px;overflow-y:auto;margin-top:6px;font-size:11px}
-.sum-item{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #E8D7BE}
+.code{font-family:var(--font-mono);font-size:24px;letter-spacing:2px;font-weight:600;margin:16px 0;padding:18px;border:1px solid #1b5e20;background:#e6f5ea;color:#1b5e20}
+.code.pending{border-color:var(--red);background:#fbeae6;color:var(--red)}
+.info{font-family:var(--font-body);font-size:13px;color:#444;margin-bottom:6px;line-height:1.6}
+.nav{display:flex;flex-wrap:wrap;gap:4px;max-width:480px;margin:0 auto 12px}
+.nav-btn{flex:1;min-width:78px;text-align:center;font-family:var(--font-mono);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;padding:10px 4px;border:1px solid var(--blue);background:#fff;cursor:pointer;color:var(--blue);transition:background .12s}
+.nav-btn.active{background:var(--blue);color:var(--cream)}
+.qty-row{display:flex;align-items:center;gap:16px;margin-bottom:4px}
+.qty-row button{width:46px;margin:0;padding:11px;background:var(--warm);color:var(--blue);border-color:var(--blue)}
+.qty-value{font-family:var(--font-mono);font-size:20px;font-weight:600;min-width:28px;text-align:center}
+table{width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:11px;margin-top:10px}
+th,td{border:1px solid var(--warm);padding:7px 8px;text-align:left;vertical-align:top}
+th{background:var(--blue);color:var(--cream);font-size:9px;text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+tr:nth-child(even){background:var(--soft)}
+.used-yes{color:#1b5e20;font-weight:600}
+.used-no{color:var(--red);font-weight:600}
+.summary{font-family:var(--font-mono);font-size:12px;color:#666;margin-bottom:10px}
+.del-btn{width:auto;margin:0;padding:6px 10px;font-size:10px;background:#fbeae6;border-color:var(--red);color:var(--red)}
+#session-summary{margin-top:22px;padding-top:16px;border-top:1px dashed var(--warm)}
+#session-summary h2{font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px;color:#666}
+.sum-row{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:13px;padding:3px 0}
+.sum-row b{font-weight:600}
+.sum-list{max-height:140px;overflow-y:auto;margin-top:6px;font-family:var(--font-mono);font-size:11px}
+.sum-item{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--soft)}
 .wide{max-width:960px}
-.logo-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:18px;padding-bottom:16px;border-bottom:2px solid #E8D7BE}
-.logo-row img{width:52px;height:52px;object-fit:contain}
-.logo-row span{font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:24px;letter-spacing:.03em;color:#164194}
+.logo-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid var(--warm)}
+.logo-row img{width:48px;height:48px;object-fit:contain}
+.logo-row span{font-family:var(--font-display);font-weight:900;font-style:italic;font-size:26px;letter-spacing:.01em;color:var(--blue)}
 </style>
 </head>
 <body>
+
 <div id="gate" class="card">
   <div class="logo-row"><img src="pomodoro_originale_trasparente.png" alt="Scaro"><span>SCARO TICKET</span></div>
   <h1>Gestionale</h1>
