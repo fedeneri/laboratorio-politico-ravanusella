@@ -67,6 +67,10 @@ tr:nth-child(even){background:#F8EFE2}
 
 <div id="app" style="display:none">
   <div class="logo-row"><img src="pomodoro_originale_trasparente.png" alt="Scaro"><span>SCARO TICKET</span></div>
+  <div class="card" style="max-width:480px;margin:0 auto 10px;padding:14px">
+    <label for="event-select" style="margin:0 0 6px">Evento</label>
+    <select id="event-select" style="width:100%;padding:10px;border:2px solid #164194;font-family:inherit;font-size:14px"></select>
+  </div>
   <div class="nav">
     <div class="nav-btn active" data-view="sell">Vendita</div>
     <div class="nav-btn" data-view="reserve">Prenota</div>
@@ -82,12 +86,27 @@ tr:nth-child(even){background:#F8EFE2}
 <script>
 const API_BASE = 'https://scaro-biglietti.scaro.workers.dev';
 
-/* ← Evento e tariffe attuali. Aggiorna qui quando cambia l'evento. */
-const EVENT = { id: 'cabaret-barbecue', title: 'Cabaret & Barbecue — Stefano Chiodaroli' };
-const TIERS = [
-  { id: 'sedia', label: 'Posto a sedere', price: 10 },
-  { id: 'combo', label: 'Sedia + panino + salsiccia + birra ghiacciata', price: 15.99 }
+/* ← Elenco eventi disponibili. Aggiungi qui un evento nuovo con il suo id,
+   titolo e tariffe, comparirà nel selettore in alto. Il primo della lista
+   è quello selezionato di default all'apertura. */
+const EVENTS = [
+  {
+    id: 'cabaret-barbecue', title: 'Cabaret & Barbecue — Stefano Chiodaroli',
+    tiers: [
+      { id: 'sedia', label: 'Posto a sedere', price: 10 },
+      { id: 'combo', label: 'Sedia + panino + salsiccia + birra ghiacciata', price: 15.99 }
+    ]
+  },
+  {
+    id: 'prova', title: 'Evento di prova',
+    tiers: [
+      { id: 'test-a', label: 'Tariffa test A', price: 1 },
+      { id: 'test-b', label: 'Tariffa test B', price: 2 }
+    ]
+  }
 ];
+let selectedEvent = EVENTS[0];
+function TIERS_current(){ return selectedEvent.tiers; }
 const PAYMENTS = [
   { id: 'cash', label: 'Contanti' },
   { id: 'bancomat', label: 'Bancomat' }
@@ -103,7 +122,21 @@ let sessionLog = [];
 function unlock(){
   document.getElementById('gate').style.display = 'none';
   document.getElementById('app').style.display = 'block';
+  populateEventSelect();
   renderView();
+}
+
+function populateEventSelect(){
+  var sel = document.getElementById('event-select');
+  sel.innerHTML = EVENTS.map(function(e){ return '<option value="' + e.id + '">' + e.title + '</option>'; }).join('');
+  sel.value = selectedEvent.id;
+  sel.onchange = function(){
+    selectedEvent = EVENTS.find(function(e){ return e.id === sel.value; }) || EVENTS[0];
+    selectedTier = null;
+    selectedPayment = null;
+    currentQty = 1;
+    renderView();
+  };
 }
 
 function getCodeFromUrl(){
@@ -117,6 +150,7 @@ if(urlCode){
   // la schermata di accesso e si va dritti alla verifica del biglietto.
   document.getElementById('gate').style.display = 'none';
   document.getElementById('app').style.display = 'block';
+  populateEventSelect();
   document.querySelectorAll('.nav-btn').forEach(function(t){ t.classList.remove('active'); });
   document.querySelector('.nav-btn[data-view="checkin-code"]').classList.add('active');
   currentView = 'checkin-code';
@@ -178,7 +212,7 @@ function bindTierOpts(onChange){
       document.querySelectorAll('.opt[data-tier]').forEach(function(o){ o.classList.remove('selected'); });
       el.classList.add('selected');
       el.querySelector('input').checked = true;
-      selectedTier = TIERS.find(function(t){ return t.id === el.dataset.tier; });
+      selectedTier = TIERS_current().find(function(t){ return t.id === el.dataset.tier; });
       onChange();
     };
   });
@@ -235,7 +269,7 @@ function renderSessionSummary(){
 function renderSellForm(){
   document.getElementById('view-wrap').innerHTML =
     '<h1>Vendita diretta</h1>'
-    + '<label>Tariffa</label><div class="tiers">' + TIERS.map(tierOptHTML).join('') + '</div>'
+    + '<label>Tariffa</label><div class="tiers">' + TIERS_current().map(tierOptHTML).join('') + '</div>'
     + '<label>Pagamento</label><div class="pay">' + PAYMENTS.map(payOptHTML).join('') + '</div>'
     + '<label for="buyer-name">Nome</label><input type="text" id="buyer-name" placeholder="Nome e cognome">'
     + qtyPickerHTML()
@@ -260,7 +294,7 @@ function submitSell(){
   document.getElementById('submit-btn').disabled = true;
   fetch(API_BASE + '/api/box-office-ticket', {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
-    body: JSON.stringify({ eventId: EVENT.id, eventTitle: EVENT.title, tierId: selectedTier.id, tierLabel: selectedTier.label, price: selectedTier.price, buyerName: name, paymentMethod: selectedPayment, qty: currentQty })
+    body: JSON.stringify({ eventId: selectedEvent.id, eventTitle: selectedEvent.title, tierId: selectedTier.id, tierLabel: selectedTier.label, price: selectedTier.price, buyerName: name, paymentMethod: selectedPayment, qty: currentQty })
   })
     .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, data: d }; }); })
     .then(function(res){
@@ -278,7 +312,7 @@ function submitSell(){
 function renderReserveForm(){
   document.getElementById('view-wrap').innerHTML =
     '<h1>Prenotazione (paga dopo)</h1>'
-    + '<label>Tariffa</label><div class="tiers">' + TIERS.map(tierOptHTML).join('') + '</div>'
+    + '<label>Tariffa</label><div class="tiers">' + TIERS_current().map(tierOptHTML).join('') + '</div>'
     + '<label for="buyer-name">Nome</label><input type="text" id="buyer-name" placeholder="Nome e cognome">'
     + qtyPickerHTML()
     + '<button id="submit-btn" disabled>Genera codice prenotazione</button>'
@@ -299,7 +333,7 @@ function submitReserve(){
   document.getElementById('submit-btn').disabled = true;
   fetch(API_BASE + '/api/box-office-reserve', {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
-    body: JSON.stringify({ eventId: EVENT.id, eventTitle: EVENT.title, tierId: selectedTier.id, tierLabel: selectedTier.label, price: selectedTier.price, buyerName: name, qty: currentQty })
+    body: JSON.stringify({ eventId: selectedEvent.id, eventTitle: selectedEvent.title, tierId: selectedTier.id, tierLabel: selectedTier.label, price: selectedTier.price, buyerName: name, qty: currentQty })
   })
     .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, data: d }; }); })
     .then(function(res){
@@ -513,7 +547,7 @@ function searchReconcile(){
       var missing = res.data.dettaglio || [];
       status.textContent = res.data.transazioniCompletate + ' pagamenti esaminati · ' + missing.length + ' segnalati come mancanti';
       if(!missing.length){ result.innerHTML = '<div class="info">Nessuno.</div>'; return; }
-      var tierOptions = TIERS.map(function(t){ return '<option value="' + t.id + '">' + t.label + ' (' + t.price + ' €)</option>'; }).join('');
+      var tierOptions = TIERS_current().map(function(t){ return '<option value="' + t.id + '">' + t.label + ' (' + t.price + ' €)</option>'; }).join('');
       result.innerHTML = missing.map(function(m, i){
         return '<div style="border:2px solid #164194;padding:12px;margin-bottom:10px">'
           + '<div><b>' + (m.payerName || 'Nome sconosciuto') + '</b> — ' + (m.payerEmail || 'email sconosciuta') + '</div>'
@@ -528,12 +562,12 @@ function searchReconcile(){
           var i = btn.dataset.idx;
           var m = missing[i];
           var tierId = document.getElementById('rec-tier-' + i).value;
-          var tier = TIERS.find(function(t){ return t.id === tierId; });
+          var tier = TIERS_current().find(function(t){ return t.id === tierId; });
           var rstatus = document.getElementById('rec-status-' + i);
           rstatus.textContent = 'Generazione in corso…';
           fetch(API_BASE + '/api/reconcile-create-ticket', {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
-            body: JSON.stringify({ orderId: m.orderId, eventId: EVENT.id, eventTitle: EVENT.title, tierId: tier.id, tierLabel: tier.label, buyerEmail: m.payerEmail, buyerName: m.payerName })
+            body: JSON.stringify({ orderId: m.orderId, eventId: selectedEvent.id, eventTitle: selectedEvent.title, tierId: tier.id, tierLabel: tier.label, buyerEmail: m.payerEmail, buyerName: m.payerName })
           })
             .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, data: d }; }); })
             .then(function(res2){
