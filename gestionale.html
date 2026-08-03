@@ -50,11 +50,15 @@ tr:nth-child(even){background:#F8EFE2}
 .sum-list{max-height:140px;overflow-y:auto;margin-top:6px;font-size:11px}
 .sum-item{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #E8D7BE}
 .wide{max-width:960px}
+.logo-row{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:14px}
+.logo-row img{width:40px;height:40px;object-fit:contain}
+.logo-row span{font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:26px;letter-spacing:.04em;color:#164194}
 </style>
 </head>
 <body>
 <div id="gate" class="card">
-  <h1>Gestionale — Scaro</h1>
+  <div class="logo-row"><img src="pomodoro_originale_trasparente.png" alt="Scaro"><span>SCARO</span></div>
+  <h1>Gestionale</h1>
   <label for="key">Chiave admin</label>
   <input type="password" id="key" placeholder="ADMIN_KEY">
   <button id="unlock-btn">Entra</button>
@@ -62,6 +66,7 @@ tr:nth-child(even){background:#F8EFE2}
 </div>
 
 <div id="app" style="display:none">
+  <div class="logo-row"><img src="pomodoro_originale_trasparente.png" alt="Scaro"><span>SCARO</span></div>
   <div class="nav">
     <div class="nav-btn active" data-view="sell">Vendita</div>
     <div class="nav-btn" data-view="reserve">Prenota</div>
