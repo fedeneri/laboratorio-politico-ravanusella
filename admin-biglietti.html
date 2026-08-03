@@ -193,6 +193,12 @@ document.getElementById('reconcile-btn').onclick = function(){
       if(!missing.length){ result.innerHTML = '<div class="card empty">Nessun pagamento mancante trovato.</div>'; return; }
 
       var tierOptions = RECONCILE_TIERS.map(function(t){ return '<option value="' + t.id + '">' + t.label + ' (' + t.price + ' €)</option>'; }).join('');
+      var bulkHTML = '<div class="card">'
+        + '<label>Tariffa da usare per tutti (puoi comunque cambiarla singolarmente sotto)</label>'
+        + '<select id="rec-bulk-tier" style="width:100%;max-width:320px;padding:8px;border:2px solid #164194;font-family:inherit">' + tierOptions + '</select>'
+        + '<button id="rec-bulk-btn">Genera biglietti per TUTTI (' + missing.length + ')</button>'
+        + '<div id="rec-bulk-status" class="status"></div>'
+        + '</div>';
       var rows = missing.map(function(m, i){
         return '<div class="card">'
           + '<div><b>' + (m.payerName || 'Nome sconosciuto') + '</b> — ' + (m.payerEmail || 'email sconosciuta') + '</div>'
@@ -203,39 +209,66 @@ document.getElementById('reconcile-btn').onclick = function(){
           + '<div id="rec-status-' + i + '" class="status"></div>'
           + '</div>';
       }).join('');
-      result.innerHTML = rows;
+      result.innerHTML = bulkHTML + rows;
+
+      function generateForIndex(i, tierId){
+        var m = missing[i];
+        var tier = RECONCILE_TIERS.find(function(t){ return t.id === tierId; });
+        var rstatus = document.getElementById('rec-status-' + i);
+        var btn = document.querySelector('.rec-gen-btn[data-idx="' + i + '"]');
+        if(rstatus) rstatus.textContent = 'Generazione in corso…';
+        var akey = document.getElementById('key').value.trim();
+        if(!akey){ if(rstatus) rstatus.innerHTML = '<span class="bad">Inserisci prima la ADMIN_KEY nel riquadro in alto.</span>'; return Promise.resolve(false); }
+        return fetch(API_BASE + '/api/reconcile-create-ticket', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Key': akey },
+          body: JSON.stringify({
+            orderId: m.orderId, eventId: RECONCILE_EVENT.id, eventTitle: RECONCILE_EVENT.title,
+            tierId: tier.id, tierLabel: tier.label,
+            buyerEmail: m.payerEmail, buyerName: m.payerName
+          })
+        })
+          .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, data: d }; }); })
+          .then(function(res2){
+            if(!res2.ok || !res2.data.ok){
+              if(rstatus) rstatus.innerHTML = '<span class="bad">Errore, riprova.</span>';
+              return false;
+            }
+            if(rstatus) rstatus.innerHTML = '<span style="color:#1b5e20;font-weight:700">✓ Biglietto ' + res2.data.code + ' generato' + (res2.data.emailSent ? ' e inviato via email' : ' (email non inviata, controlla manualmente)') + (res2.data.alreadyIssued ? ' — era già stato generato prima' : '') + '</span>';
+            if(btn) btn.disabled = true;
+            return true;
+          })
+          .catch(function(){ if(rstatus) rstatus.innerHTML = '<span class="bad">Errore di rete.</span>'; return false; });
+      }
 
       document.querySelectorAll('.rec-gen-btn').forEach(function(btn){
         btn.onclick = function(){
           var i = btn.dataset.idx;
-          var m = missing[i];
           var tierId = document.getElementById('rec-tier-' + i).value;
-          var tier = RECONCILE_TIERS.find(function(t){ return t.id === tierId; });
-          var rstatus = document.getElementById('rec-status-' + i);
-          rstatus.textContent = 'Generazione in corso…';
-          var akey = document.getElementById('key').value.trim();
-          if(!akey){ rstatus.innerHTML = '<span class="bad">Inserisci prima la ADMIN_KEY nel riquadro in alto.</span>'; return; }
-          fetch(API_BASE + '/api/reconcile-create-ticket', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Admin-Key': akey },
-            body: JSON.stringify({
-              orderId: m.orderId, eventId: RECONCILE_EVENT.id, eventTitle: RECONCILE_EVENT.title,
-              tierId: tier.id, tierLabel: tier.label,
-              buyerEmail: m.payerEmail, buyerName: m.payerName
-            })
-          })
-            .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, data: d }; }); })
-            .then(function(res2){
-              if(!res2.ok || !res2.data.ok){
-                rstatus.innerHTML = '<span class="bad">Errore, riprova.</span>';
-                return;
-              }
-              rstatus.innerHTML = '<span style="color:#1b5e20;font-weight:700">✓ Biglietto ' + res2.data.code + ' generato' + (res2.data.emailSent ? ' e inviato via email' : ' (email non inviata, controlla manualmente)') + (res2.data.alreadyIssued ? ' — era già stato generato prima' : '') + '</span>';
-              btn.disabled = true;
-            })
-            .catch(function(){ rstatus.innerHTML = '<span class="bad">Errore di rete.</span>'; });
+          generateForIndex(i, tierId);
         };
       });
+
+      document.getElementById('rec-bulk-btn').onclick = function(){
+        var bulkTier = document.getElementById('rec-bulk-tier').value;
+        var bulkStatus = document.getElementById('rec-bulk-status');
+        var btn = document.getElementById('rec-bulk-btn');
+        btn.disabled = true;
+        var done = 0;
+        bulkStatus.textContent = 'Generazione in corso… 0 / ' + missing.length;
+        var chain = Promise.resolve();
+        missing.forEach(function(m, i){
+          chain = chain.then(function(){
+            return generateForIndex(i, bulkTier).then(function(){
+              done++;
+              bulkStatus.textContent = 'Generazione in corso… ' + done + ' / ' + missing.length;
+            });
+          });
+        });
+        chain.then(function(){
+          bulkStatus.innerHTML = '<span style="color:#1b5e20;font-weight:700">✓ Fatto: ' + done + ' / ' + missing.length + ' biglietti generati</span>';
+        });
+      };
     })
     .catch(function(){ status.innerHTML = '<span class="bad">Errore di rete, riprova.</span>'; });
 };
