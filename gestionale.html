@@ -67,11 +67,18 @@ tr:nth-child(even){background:#F8EFE2}
 
 <div id="app" style="display:none">
   <div class="logo-row"><img src="pomodoro_originale_trasparente.png" alt="Scaro"><span>SCARO TICKET</span></div>
-  <div class="card" style="max-width:480px;margin:0 auto 10px;padding:14px">
-    <label for="event-select" style="margin:0 0 6px">Evento</label>
-    <select id="event-select" style="width:100%;padding:10px;border:2px solid #164194;font-family:inherit;font-size:14px"></select>
+
+  <div id="event-picker" class="card" style="max-width:480px">
+    <h1>Scegli evento</h1>
+    <div id="event-cards"></div>
   </div>
-  <div class="nav">
+
+  <div id="app-main" style="display:none">
+    <div class="card" style="max-width:480px;margin:0 auto 10px;padding:12px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <div style="font-weight:700;font-size:13px" id="current-event-label"></div>
+      <button id="change-event-btn" class="secondary" style="width:auto;margin:0;padding:8px 12px;font-size:11px">Cambia evento</button>
+    </div>
+    <div class="nav">
     <div class="nav-btn active" data-view="sell">Vendita</div>
     <div class="nav-btn" data-view="reserve">Prenota</div>
     <div class="nav-btn" data-view="confirm">Conf. pag.</div>
@@ -81,6 +88,7 @@ tr:nth-child(even){background:#F8EFE2}
     <div class="nav-btn" data-view="reconcile">Pagamenti</div>
   </div>
   <div id="view-wrap" class="card"></div>
+  </div>
 </div>
 
 <script>
@@ -122,22 +130,37 @@ let sessionLog = [];
 function unlock(){
   document.getElementById('gate').style.display = 'none';
   document.getElementById('app').style.display = 'block';
-  populateEventSelect();
+  showEventPicker();
+}
+
+function showEventPicker(){
+  document.getElementById('app-main').style.display = 'none';
+  document.getElementById('event-picker').style.display = 'block';
+  document.getElementById('event-cards').innerHTML = EVENTS.map(function(e){
+    return '<div class="opt" data-event="' + e.id + '" style="margin-bottom:8px"><span class="lbl">' + e.title + '</span></div>';
+  }).join('');
+  document.querySelectorAll('#event-cards .opt').forEach(function(el){
+    el.onclick = function(){
+      selectedEvent = EVENTS.find(function(e){ return e.id === el.dataset.event; }) || EVENTS[0];
+      enterEvent();
+    };
+  });
+}
+
+function enterEvent(){
+  document.getElementById('event-picker').style.display = 'none';
+  document.getElementById('app-main').style.display = 'block';
+  document.getElementById('current-event-label').textContent = selectedEvent.title;
+  selectedTier = null;
+  selectedPayment = null;
+  currentQty = 1;
+  currentView = 'sell';
+  document.querySelectorAll('.nav-btn').forEach(function(t){ t.classList.remove('active'); });
+  document.querySelector('.nav-btn[data-view="sell"]').classList.add('active');
   renderView();
 }
 
-function populateEventSelect(){
-  var sel = document.getElementById('event-select');
-  sel.innerHTML = EVENTS.map(function(e){ return '<option value="' + e.id + '">' + e.title + '</option>'; }).join('');
-  sel.value = selectedEvent.id;
-  sel.onchange = function(){
-    selectedEvent = EVENTS.find(function(e){ return e.id === sel.value; }) || EVENTS[0];
-    selectedTier = null;
-    selectedPayment = null;
-    currentQty = 1;
-    renderView();
-  };
-}
+document.getElementById('change-event-btn').onclick = showEventPicker;
 
 function getCodeFromUrl(){
   var m = location.search.match(/[?&]c=([^&]+)/);
@@ -146,11 +169,13 @@ function getCodeFromUrl(){
 
 var urlCode = getCodeFromUrl();
 if(urlCode){
-  // Da QR: il check-in singolo non richiede la chiave admin, quindi si salta
-  // la schermata di accesso e si va dritti alla verifica del biglietto.
+  // Da QR: il check-in singolo non richiede la chiave admin ne' la scelta
+  // dell'evento, quindi si salta dritti alla verifica del biglietto.
   document.getElementById('gate').style.display = 'none';
   document.getElementById('app').style.display = 'block';
-  populateEventSelect();
+  document.getElementById('event-picker').style.display = 'none';
+  document.getElementById('app-main').style.display = 'block';
+  document.getElementById('current-event-label').textContent = selectedEvent.title;
   document.querySelectorAll('.nav-btn').forEach(function(t){ t.classList.remove('active'); });
   document.querySelector('.nav-btn[data-view="checkin-code"]').classList.add('active');
   currentView = 'checkin-code';
@@ -505,7 +530,10 @@ function loadList(){
     .then(function(res){
       if(!res.ok || !res.data.ok){ status.innerHTML = '<span class="bad">' + (res.data && res.data.error === 'unauthorized' ? 'Chiave sbagliata.' : 'Errore.') + '</span>'; return; }
       var excludedEmails = ['fedeneri.fm'];
-      allTickets = (res.data.tickets || []).filter(function(t){ return !excludedEmails.some(function(ex){ return (t.buyerEmail||'').toLowerCase().indexOf(ex) !== -1; }); });
+      allTickets = (res.data.tickets || []).filter(function(t){
+        if(t.eventId !== selectedEvent.id) return false;
+        return !excludedEmails.some(function(ex){ return (t.buyerEmail||'').toLowerCase().indexOf(ex) !== -1; });
+      });
       status.textContent = '';
       if(!allTickets.length){ result.innerHTML = '<div class="info">Nessun biglietto.</div>'; return; }
       result.innerHTML = '<input type="text" id="search-box" placeholder="Cerca per nome o email…" style="text-transform:none;margin-bottom:12px"><div id="table-wrap"></div>';
