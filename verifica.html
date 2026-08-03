@@ -126,16 +126,18 @@ if(initial) checkCode(initial); else showManualForm();
 
 /* --- Modalità email: check-in di gruppo --- */
 function showEmailForm(){
+  var savedKey = localStorage.getItem('scaro_admin_key');
   render(
-    '<input id="admin-key" type="password" placeholder="Chiave admin" style="text-transform:none">' +
+    (savedKey ? '' : '<input id="admin-key" type="password" placeholder="Chiave admin" style="text-transform:none">') +
     '<input id="group-email" placeholder="Email acquirente" style="text-transform:none">' +
     '<button id="group-btn">Fai check-in al gruppo</button>'
   );
   document.getElementById('group-btn').onclick = function(){
-    adminKey = document.getElementById('admin-key').value.trim();
+    adminKey = savedKey || document.getElementById('admin-key').value.trim();
     var email = document.getElementById('group-email').value.trim();
     if(!adminKey){ render('<div class="status bad">Inserisci la chiave admin</div><button id="retry-btn">Riprova</button>'); document.getElementById('retry-btn').onclick = showEmailForm; return; }
     if(!email){ render('<div class="status bad">Inserisci un\'email</div><button id="retry-btn">Riprova</button>'); document.getElementById('retry-btn').onclick = showEmailForm; return; }
+    localStorage.setItem('scaro_admin_key', adminKey);
     checkinByEmail(email);
   };
 }

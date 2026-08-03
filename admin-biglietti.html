@@ -50,11 +50,14 @@ tr:nth-child(even){background:#F8EFE2}
 <script>
 const API_BASE = 'https://scaro-biglietti.scaro.workers.dev';
 
+document.getElementById('key').value = localStorage.getItem('scaro_admin_key') || '';
+
 document.getElementById('load-btn').onclick = function(){
   var key = document.getElementById('key').value.trim();
   var status = document.getElementById('status');
   var result = document.getElementById('result');
   if(!key){ status.innerHTML = '<span class="bad">Inserisci la chiave.</span>'; return; }
+  localStorage.setItem('scaro_admin_key', key);
   status.textContent = 'Caricamento…';
   result.innerHTML = '';
   fetch(API_BASE + '/api/tickets', { headers: { 'X-Admin-Key': key } })

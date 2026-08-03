@@ -135,10 +135,19 @@ function bindQtyPicker(onChange){
 document.getElementById('unlock-btn').onclick = function(){
   adminKey = document.getElementById('key').value.trim();
   if(!adminKey){ document.getElementById('gate-status').innerHTML = '<span class="bad">Inserisci la chiave.</span>'; return; }
+  localStorage.setItem('scaro_admin_key', adminKey);
   document.getElementById('admin-gate').style.display = 'none';
   document.getElementById('tabs-wrap').style.display = 'block';
   renderTab();
 };
+
+var savedKey = localStorage.getItem('scaro_admin_key');
+if(savedKey){
+  adminKey = savedKey;
+  document.getElementById('admin-gate').style.display = 'none';
+  document.getElementById('tabs-wrap').style.display = 'block';
+  renderTab();
+}
 
 document.querySelectorAll('.tab').forEach(function(el){
   el.onclick = function(){
