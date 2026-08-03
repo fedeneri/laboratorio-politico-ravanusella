@@ -37,6 +37,14 @@ tr:nth-child(even){background:#F8EFE2}
     <button id="load-btn">Carica elenco</button>
     <div id="status" class="status"></div>
   </div>
+  <div class="card">
+    <h1>Check-in per email</h1>
+    <label for="checkin-email">Email acquirente</label>
+    <input type="text" id="checkin-email" placeholder="nome@esempio.it">
+    <br>
+    <button id="checkin-email-btn">Fai check-in a tutti i suoi biglietti</button>
+    <div id="checkin-email-status" class="status"></div>
+  </div>
   <div id="result"></div>
 </div>
 <script>
@@ -93,6 +101,37 @@ document.getElementById('load-btn').onclick = function(){
         + '<th>Acquistato il</th><th>Evento</th><th>Tariffa</th><th>Nome</th><th>Email</th><th>Pagamento</th><th>Codice</th><th>Ingresso</th>'
         + '</tr></thead><tbody>' + rows + '</tbody></table></div>'
         + '</div>';
+    })
+    .catch(function(){ status.innerHTML = '<span class="bad">Errore di rete, riprova.</span>'; });
+};
+
+document.getElementById('checkin-email-btn').onclick = function(){
+  var key = document.getElementById('key').value.trim();
+  var email = document.getElementById('checkin-email').value.trim();
+  var status = document.getElementById('checkin-email-status');
+  if(!key){ status.innerHTML = '<span class="bad">Inserisci prima la chiave admin qui sopra.</span>'; return; }
+  if(!email){ status.innerHTML = '<span class="bad">Inserisci un\'email.</span>'; return; }
+  status.textContent = 'Check-in in corso…';
+  fetch(API_BASE + '/api/tickets/checkin-by-email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Admin-Key': key },
+    body: JSON.stringify({ email: email })
+  })
+    .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, data: d }; }); })
+    .then(function(res){
+      if(!res.ok || !res.data.ok){
+        status.innerHTML = '<span class="bad">' + (res.data && res.data.error === 'unauthorized' ? 'Chiave sbagliata.' : 'Errore, riprova.') + '</span>';
+        return;
+      }
+      var results = res.data.results || [];
+      if(!results.length){ status.innerHTML = '<span class="bad">Nessun biglietto trovato per questa email.</span>'; return; }
+      var checkedIn = results.filter(function(r){ return r.status === 'checked-in'; }).length;
+      var already = results.filter(function(r){ return r.status === 'already-used'; }).length;
+      var notPaid = results.filter(function(r){ return r.status === 'not-paid'; }).length;
+      var msg = checkedIn + ' biglietto/i registrati ora';
+      if(already) msg += ', ' + already + ' già entrati in precedenza';
+      if(notPaid) msg += ', ' + notPaid + ' non pagati (saltati)';
+      status.textContent = msg + '.';
     })
     .catch(function(){ status.innerHTML = '<span class="bad">Errore di rete, riprova.</span>'; });
 };

@@ -393,6 +393,35 @@ async function handleBoxOfficeTicket(request, env, origin) {
   return json({ ok: true, code: codes[0], codes: codes }, 200, origin);
 }
 
+async function handleCheckinByEmail(request, env, origin) {
+  // Fa il check-in di tutti i biglietti pagati e non ancora usati di una
+  // email, in un colpo solo (utile per chi ha comprato piu' biglietti).
+  const key = request.headers.get('X-Admin-Key') || '';
+  if (!env.ADMIN_KEY || key !== env.ADMIN_KEY) return json({ ok: false, error: 'unauthorized' }, 401, origin);
+
+  const body = await request.json().catch(() => null);
+  const email = (body && body.email || '').trim().toLowerCase();
+  if (!email) return json({ ok: false, error: 'bad-request' }, 400, origin);
+
+  const list = await env.TICKETS.list({ prefix: 'ticket:' });
+  const results = [];
+  for (const k of list.keys) {
+    const raw = await env.TICKETS.get(k.name);
+    if (!raw) continue;
+    const t = JSON.parse(raw);
+    if ((t.buyerEmail || '').toLowerCase() !== email) continue;
+    const code = k.name.replace(/^ticket:/, '');
+    if (t.paid === false) { results.push({ code, status: 'not-paid' }); continue; }
+    if (t.used) { results.push({ code, status: 'already-used' }); continue; }
+    t.used = true;
+    t.usedAt = new Date().toISOString();
+    await env.TICKETS.put(k.name, JSON.stringify(t));
+    results.push({ code, status: 'checked-in' });
+  }
+
+  return json({ ok: true, results: results }, 200, origin);
+}
+
 async function handleListTickets(request, env, origin) {
   // Elenco di chi ha comprato un biglietto. Contiene email e nomi, quindi
   // e' protetto da una chiave (ADMIN_KEY) che non deve mai finire nel
@@ -788,6 +817,9 @@ export default {
     }
     if (url.pathname === '/api/tickets' && request.method === 'GET') {
       return handleListTickets(request, env, origin);
+    }
+    if (url.pathname === '/api/tickets/checkin-by-email' && request.method === 'POST') {
+      return handleCheckinByEmail(request, env, origin);
     }
     if (url.pathname === '/api/box-office-ticket' && request.method === 'POST') {
       return handleBoxOfficeTicket(request, env, origin);
