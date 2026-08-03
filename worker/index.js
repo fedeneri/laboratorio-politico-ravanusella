@@ -431,6 +431,61 @@ async function handleDeleteTicket(request, env, origin, code) {
   return json({ ok: true }, 200, origin);
 }
 
+async function handleReconcileCreateTicket(request, env, origin) {
+  // Genera il biglietto mancante per un pagamento PayPal gia' avvenuto
+  // (trovato con /api/reconcile), senza richiamare PayPal di nuovo.
+  const key = request.headers.get('X-Admin-Key') || '';
+  if (!env.ADMIN_KEY || key !== env.ADMIN_KEY) return json({ ok: false, error: 'unauthorized' }, 401, origin);
+
+  const body = await request.json().catch(() => null);
+  if (!body || !body.orderId || !body.eventId) return json({ ok: false, error: 'bad-request' }, 400, origin);
+
+  const existing = await env.TICKETS.get('order:' + body.orderId);
+  if (existing) {
+    const codes = JSON.parse(existing);
+    return json({ ok: true, code: codes[0], codes: codes, alreadyIssued: true }, 200, origin);
+  }
+
+  const qty = Math.max(1, Math.min(20, parseInt(body.qty, 10) || 1));
+  const codes = [];
+  for (let i = 0; i < qty; i++) {
+    const code = randomCode();
+    const record = {
+      orderId: body.orderId,
+      eventId: body.eventId,
+      tierId: body.tierId || '',
+      tierLabel: body.tierLabel || '',
+      eventTitle: body.eventTitle || '',
+      buyerEmail: body.buyerEmail || '',
+      buyerName: body.buyerName || '',
+      used: false,
+      createdAt: new Date().toISOString(),
+      usedAt: null
+    };
+    await env.TICKETS.put('ticket:' + code, JSON.stringify(record));
+    codes.push(code);
+  }
+  await env.TICKETS.put('order:' + body.orderId, JSON.stringify(codes));
+
+  let emailSent = false;
+  let emailError = '';
+  if (body.buyerEmail) {
+    try {
+      const r = await sendTicketEmail(env, {
+        to: body.buyerEmail,
+        codes: codes,
+        eventTitle: body.eventTitle || '',
+        tierLabel: body.tierLabel || '',
+        verifyUrlBase: 'https://scaro.it/verifica.html?c='
+      });
+      emailSent = r.ok;
+      if (!r.ok) emailError = r.detail || '';
+    } catch (e) { emailError = String(e); }
+  }
+
+  return json({ ok: true, code: codes[0], codes: codes, emailSent: emailSent, emailError: emailError }, 200, origin);
+}
+
 async function handleListTickets(request, env, origin) {
   // Elenco di chi ha comprato un biglietto. Contiene email e nomi, quindi
   // e' protetto da una chiave (ADMIN_KEY) che non deve mai finire nel
@@ -800,6 +855,9 @@ export default {
 
     if (url.pathname === '/api/reconcile' && request.method === 'GET') {
       return handleReconcile(request, env, origin);
+    }
+    if (url.pathname === '/api/reconcile-create-ticket' && request.method === 'POST') {
+      return handleReconcileCreateTicket(request, env, origin);
     }
     if (url.pathname === '/api/reconcile-tickets' && request.method === 'GET') {
       return handleReconcileTickets(request, env, origin);
