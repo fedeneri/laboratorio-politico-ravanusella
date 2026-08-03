@@ -96,14 +96,29 @@ document.getElementById('load-btn').onclick = function(){
           + '<td>' + payLabel(t) + '</td>'
           + '<td>' + t.code + '</td>'
           + '<td class="' + (t.used ? 'used-yes' : 'used-no') + '">' + (t.used ? '✓ Entrato' : '— Non ancora') + '</td>'
+          + '<td><button class="del-btn" data-code="' + t.code + '" style="margin:0;padding:6px 10px;font-size:11px;background:#fbdcdc;border-color:#b3261e;color:#b3261e">Elimina</button></td>'
           + '</tr>';
       }).join('');
       result.innerHTML = '<div class="card">'
         + '<div class="summary">' + tickets.length + ' biglietti totali · ' + usedCount + ' già entrati</div>'
         + '<div style="overflow-x:auto"><table><thead><tr>'
-        + '<th>Acquistato il</th><th>Evento</th><th>Tariffa</th><th>Nome</th><th>Email</th><th>Pagamento</th><th>Codice</th><th>Ingresso</th>'
+        + '<th>Acquistato il</th><th>Evento</th><th>Tariffa</th><th>Nome</th><th>Email</th><th>Pagamento</th><th>Codice</th><th>Ingresso</th><th></th>'
         + '</tr></thead><tbody>' + rows + '</tbody></table></div>'
         + '</div>';
+      document.querySelectorAll('.del-btn').forEach(function(btn){
+        btn.onclick = function(){
+          var code = btn.dataset.code;
+          if(!confirm('Eliminare definitivamente il biglietto ' + code + '?')) return;
+          var savedKey = document.getElementById('key').value.trim();
+          fetch(API_BASE + '/api/ticket/' + encodeURIComponent(code), { method: 'DELETE', headers: { 'X-Admin-Key': savedKey } })
+            .then(function(r){ return r.json(); })
+            .then(function(d){
+              if(d && d.ok){ btn.closest('tr').remove(); }
+              else { alert('Errore nell\'eliminazione.'); }
+            })
+            .catch(function(){ alert('Errore di rete.'); });
+        };
+      });
     })
     .catch(function(){ status.innerHTML = '<span class="bad">Errore di rete, riprova.</span>'; });
 };

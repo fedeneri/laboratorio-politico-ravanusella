@@ -54,7 +54,7 @@ function corsHeaders(origin) {
   const allow = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
   return {
     'Access-Control-Allow-Origin': allow,
-    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+    'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, X-Test-Key, X-Admin-Key',
     'Vary': 'Origin'
   };
@@ -420,6 +420,15 @@ async function handleCheckinByEmail(request, env, origin) {
   }
 
   return json({ ok: true, results: results }, 200, origin);
+}
+
+async function handleDeleteTicket(request, env, origin, code) {
+  const key = request.headers.get('X-Admin-Key') || '';
+  if (!env.ADMIN_KEY || key !== env.ADMIN_KEY) return json({ ok: false, error: 'unauthorized' }, 401, origin);
+  const raw = await env.TICKETS.get('ticket:' + code);
+  if (!raw) return json({ ok: false, error: 'not-found' }, 404, origin);
+  await env.TICKETS.delete('ticket:' + code);
+  return json({ ok: true }, 200, origin);
 }
 
 async function handleListTickets(request, env, origin) {
@@ -838,6 +847,10 @@ export default {
     const checkinMatch = url.pathname.match(/^\/api\/ticket\/([A-Z0-9-]+)\/checkin$/i);
     if (checkinMatch && request.method === 'POST') {
       return handleCheckin(env, origin, checkinMatch[1].toUpperCase());
+    }
+    const deleteMatch = url.pathname.match(/^\/api\/ticket\/([A-Z0-9-]+)$/i);
+    if (deleteMatch && request.method === 'DELETE') {
+      return handleDeleteTicket(request, env, origin, deleteMatch[1].toUpperCase());
     }
 
     return json({ ok: false, error: 'not-found' }, 404, origin);
