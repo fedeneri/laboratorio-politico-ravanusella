@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Botteghino — Scaro</title>
+<meta name="robots" content="noindex,nofollow">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:#F4E7DB;color:#164194;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.card{max-width:420px;width:100%;border:3px solid #164194;background:#fff;padding:28px}
+h1{font-size:16px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:20px;text-align:center}
+label{display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 6px}
+input[type=text],input[type=password]{width:100%;font-family:inherit;font-size:16px;padding:12px;border:2px solid #164194}
+.tiers,.pay{display:flex;flex-direction:column;gap:8px}
+.opt{display:flex;align-items:center;gap:10px;border:2px solid #164194;padding:12px;cursor:pointer}
+.opt input{width:18px;height:18px}
+.opt.selected{background:#E8D7BE}
+.opt .lbl{font-size:14px;font-weight:700}
+.opt .price{margin-left:auto;font-family:monospace;font-size:15px}
+button{font-family:inherit;font-size:14px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:14px 22px;border:2px solid #164194;background:#164194;color:#F4E7DB;cursor:pointer;width:100%;margin-top:22px}
+button:active{opacity:.8}
+button:disabled{opacity:.5;cursor:not-allowed}
+.status{margin-top:14px;font-size:14px}
+.bad{color:#b3261e;font-weight:600}
+.result{text-align:center}
+.code{font-family:monospace;font-size:28px;letter-spacing:3px;font-weight:900;margin:18px 0;padding:18px;border:3px solid #1b5e20;background:#d4f4dd;color:#1b5e20}
+.result .info{font-size:13px;color:#444;margin-bottom:6px}
+#admin-gate label{margin-top:0}
+</style>
+</head>
+<body>
+<div class="card" id="app">
+  <h1>Botteghino — Scaro</h1>
+  <div id="admin-gate">
+    <label for="key">Chiave admin</label>
+    <input type="password" id="key" placeholder="ADMIN_KEY">
+    <button id="unlock-btn">Entra</button>
+    <div id="gate-status" class="status"></div>
+  </div>
+  <div id="form-wrap" style="display:none"></div>
+</div>
+<script>
+const API_BASE = 'https://scaro-biglietti.scaro.workers.dev';
+
+/* ← Evento e tariffe attuali. Aggiorna qui quando cambia l'evento in vendita al botteghino. */
+const EVENT = { id: 'cabaret-barbecue', title: 'Cabaret & Barbecue — Stefano Chiodaroli' };
+const TIERS = [
+  { id: 'sedia', label: 'Posto a sedere', price: 10 },
+  { id: 'combo', label: 'Sedia + panino + salsiccia + birra ghiacciata', price: 15.99 }
+];
+const PAYMENTS = [
+  { id: 'cash', label: 'Contanti' },
+  { id: 'bancomat', label: 'Bancomat' }
+];
+
+let selectedTier = null;
+let selectedPayment = null;
+let adminKey = '';
+
+document.getElementById('unlock-btn').onclick = function(){
+  adminKey = document.getElementById('key').value.trim();
+  if(!adminKey){ document.getElementById('gate-status').innerHTML = '<span class="bad">Inserisci la chiave.</span>'; return; }
+  document.getElementById('admin-gate').style.display = 'none';
+  document.getElementById('form-wrap').style.display = 'block';
+  renderForm();
+};
+
+function tierOptHTML(t){
+  return '<div class="opt" data-tier="' + t.id + '">'
+    + '<input type="radio" name="tier" value="' + t.id + '">'
+    + '<span class="lbl">' + t.label + '</span>'
+    + '<span class="price">' + t.price.toFixed(2).replace('.', ',') + ' €</span>'
+    + '</div>';
+}
+function payOptHTML(p){
+  return '<div class="opt" data-pay="' + p.id + '">'
+    + '<input type="radio" name="pay" value="' + p.id + '">'
+    + '<span class="lbl">' + p.label + '</span>'
+    + '</div>';
+}
+
+function renderForm(){
+  document.getElementById('form-wrap').innerHTML =
+    '<label>Tariffa</label>'
+    + '<div class="tiers">' + TIERS.map(tierOptHTML).join('') + '</div>'
+    + '<label>Pagamento</label>'
+    + '<div class="pay">' + PAYMENTS.map(payOptHTML).join('') + '</div>'
+    + '<label for="buyer-name">Nome di chi paga</label>'
+    + '<input type="text" id="buyer-name" placeholder="Nome e cognome">'
+    + '<button id="submit-btn" disabled>Genera biglietto</button>'
+    + '<div id="status" class="status"></div>';
+
+  document.querySelectorAll('.opt[data-tier]').forEach(function(el){
+    el.onclick = function(){
+      document.querySelectorAll('.opt[data-tier]').forEach(function(o){ o.classList.remove('selected'); });
+      el.classList.add('selected');
+      el.querySelector('input').checked = true;
+      selectedTier = TIERS.find(function(t){ return t.id === el.dataset.tier; });
+      checkReady();
+    };
+  });
+  document.querySelectorAll('.opt[data-pay]').forEach(function(el){
+    el.onclick = function(){
+      document.querySelectorAll('.opt[data-pay]').forEach(function(o){ o.classList.remove('selected'); });
+      el.classList.add('selected');
+      el.querySelector('input').checked = true;
+      selectedPayment = el.dataset.pay;
+      checkReady();
+    };
+  });
+  document.getElementById('buyer-name').oninput = checkReady;
+  document.getElementById('submit-btn').onclick = submitTicket;
+}
+
+function checkReady(){
+  var name = document.getElementById('buyer-name').value.trim();
+  document.getElementById('submit-btn').disabled = !(selectedTier && selectedPayment && name);
+}
+
+function submitTicket(){
+  var name = document.getElementById('buyer-name').value.trim();
+  var status = document.getElementById('status');
+  status.textContent = 'Generazione in corso…';
+  document.getElementById('submit-btn').disabled = true;
+
+  fetch(API_BASE + '/api/box-office-ticket', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+    body: JSON.stringify({
+      eventId: EVENT.id,
+      eventTitle: EVENT.title,
+      tierId: selectedTier.id,
+      tierLabel: selectedTier.label,
+      price: selectedTier.price,
+      buyerName: name,
+      paymentMethod: selectedPayment
+    })
+  })
+    .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, data: d }; }); })
+    .then(function(res){
+      if(!res.ok || !res.data.ok){
+        status.innerHTML = '<span class="bad">' + (res.data && res.data.error === 'unauthorized' ? 'Chiave sbagliata.' : 'Errore, riprova.') + '</span>';
+        document.getElementById('submit-btn').disabled = false;
+        return;
+      }
+      document.getElementById('form-wrap').innerHTML =
+        '<div class="result">'
+        + '<div class="info"><b>' + selectedTier.label + '</b> — ' + selectedTier.price.toFixed(2).replace('.', ',') + ' € (' + (selectedPayment === 'cash' ? 'contanti' : 'bancomat') + ')</div>'
+        + '<div class="info">' + name + '</div>'
+        + '<div class="code">' + res.data.code + '</div>'
+        + '<button id="new-btn">Nuovo biglietto</button>'
+        + '</div>';
+      document.getElementById('new-btn').onclick = function(){ selectedTier = null; selectedPayment = null; renderForm(); };
+    })
+    .catch(function(){
+      status.innerHTML = '<span class="bad">Errore di rete, riprova.</span>';
+      document.getElementById('submit-btn').disabled = false;
+    });
+}
+</script>
+</body>
+</html>

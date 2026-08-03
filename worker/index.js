@@ -298,6 +298,37 @@ async function handleTestTicket(request, env, origin) {
   return json({ ok: true, code: code, emailSent: emailSent, emailError: emailError }, 200, origin);
 }
 
+async function handleBoxOfficeTicket(request, env, origin) {
+  // Biglietto venduto di persona al botteghino (contanti o bancomat), senza
+  // passare da PayPal. Protetto dalla stessa ADMIN_KEY usata per la lista
+  // acquirenti, cosi' solo chi e' fisicamente alla cassa puo' generarli.
+  const key = request.headers.get('X-Admin-Key') || '';
+  if (!env.ADMIN_KEY || key !== env.ADMIN_KEY) return json({ ok: false, error: 'unauthorized' }, 401, origin);
+
+  const body = await request.json().catch(() => null);
+  if (!body || !body.eventId || !body.tierLabel || !body.paymentMethod) return json({ ok: false, error: 'bad-request' }, 400, origin);
+  if (body.paymentMethod !== 'cash' && body.paymentMethod !== 'bancomat') return json({ ok: false, error: 'bad-payment-method' }, 400, origin);
+
+  const code = randomCode();
+  const record = {
+    orderId: 'BOTTEGHINO-' + code,
+    eventId: body.eventId,
+    tierId: body.tierId || '',
+    tierLabel: body.tierLabel,
+    eventTitle: body.eventTitle || '',
+    buyerEmail: '',
+    buyerName: body.buyerName || '',
+    paymentMethod: body.paymentMethod,
+    price: body.price || '',
+    used: false,
+    createdAt: new Date().toISOString(),
+    usedAt: null
+  };
+  await env.TICKETS.put('ticket:' + code, JSON.stringify(record));
+
+  return json({ ok: true, code: code }, 200, origin);
+}
+
 async function handleListTickets(request, env, origin) {
   // Elenco di chi ha comprato un biglietto. Contiene email e nomi, quindi
   // e' protetto da una chiave (ADMIN_KEY) che non deve mai finire nel
@@ -317,6 +348,8 @@ async function handleListTickets(request, env, origin) {
       tierLabel: t.tierLabel,
       buyerName: t.buyerName,
       buyerEmail: t.buyerEmail,
+      paymentMethod: t.paymentMethod || '',
+      orderId: t.orderId || '',
       used: t.used,
       usedAt: t.usedAt,
       createdAt: t.createdAt
@@ -689,6 +722,9 @@ export default {
     }
     if (url.pathname === '/api/tickets' && request.method === 'GET') {
       return handleListTickets(request, env, origin);
+    }
+    if (url.pathname === '/api/box-office-ticket' && request.method === 'POST') {
+      return handleBoxOfficeTicket(request, env, origin);
     }
     const statusMatch = url.pathname.match(/^\/api\/ticket\/([A-Z0-9-]+)$/i);
     if (statusMatch && request.method === 'GET') {

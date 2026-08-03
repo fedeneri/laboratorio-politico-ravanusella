@@ -69,6 +69,11 @@ document.getElementById('load-btn').onclick = function(){
         return;
       }
       var usedCount = tickets.filter(function(t){ return t.used; }).length;
+      var payLabel = function(t){
+        if(t.paymentMethod === 'cash') return 'Contanti (botteghino)';
+        if(t.paymentMethod === 'bancomat') return 'Bancomat (botteghino)';
+        return 'Online (PayPal)';
+      };
       var rows = tickets.map(function(t){
         return '<tr>'
           + '<td>' + (t.createdAt ? new Date(t.createdAt).toLocaleString('it-IT') : '') + '</td>'
@@ -76,6 +81,7 @@ document.getElementById('load-btn').onclick = function(){
           + '<td>' + (t.tierLabel || '') + '</td>'
           + '<td>' + (t.buyerName || '') + '</td>'
           + '<td>' + (t.buyerEmail || '') + '</td>'
+          + '<td>' + payLabel(t) + '</td>'
           + '<td>' + t.code + '</td>'
           + '<td class="' + (t.used ? 'used-yes' : 'used-no') + '">' + (t.used ? '✓ Entrato' : '— Non ancora') + '</td>'
           + '</tr>';
@@ -83,7 +89,7 @@ document.getElementById('load-btn').onclick = function(){
       result.innerHTML = '<div class="card">'
         + '<div class="summary">' + tickets.length + ' biglietti totali · ' + usedCount + ' già entrati</div>'
         + '<div style="overflow-x:auto"><table><thead><tr>'
-        + '<th>Acquistato il</th><th>Evento</th><th>Tariffa</th><th>Nome</th><th>Email</th><th>Codice</th><th>Ingresso</th>'
+        + '<th>Acquistato il</th><th>Evento</th><th>Tariffa</th><th>Nome</th><th>Email</th><th>Pagamento</th><th>Codice</th><th>Ingresso</th>'
         + '</tr></thead><tbody>' + rows + '</tbody></table></div>'
         + '</div>';
     })
