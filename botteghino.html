@@ -32,6 +32,12 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .tab{flex:1;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:10px 4px;border:2px solid #164194;background:#fff;cursor:pointer;color:#164194}
 .tab.active{background:#164194;color:#F4E7DB}
 button.secondary{background:#E8D7BE;color:#164194}
+#session-summary{margin-top:24px;padding-top:16px;border-top:2px dashed #164194}
+#session-summary h2{font-size:12px;letter-spacing:.05em;text-transform:uppercase;margin-bottom:10px}
+.sum-row{display:flex;justify-content:space-between;font-size:13px;padding:4px 0}
+.sum-row b{font-family:monospace}
+.sum-list{max-height:160px;overflow-y:auto;margin-top:8px;font-size:12px}
+.sum-item{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #E8D7BE}
 </style>
 </head>
 <body>
@@ -50,6 +56,7 @@ button.secondary{background:#E8D7BE;color:#164194}
       <div class="tab" data-tab="confirm">Conferma pag.</div>
     </div>
     <div id="form-wrap"></div>
+    <div id="session-summary"></div>
   </div>
 </div>
 <script>
@@ -71,6 +78,38 @@ let selectedPayment = null;
 let adminKey = '';
 let currentTab = 'sell';
 let currentQty = 1;
+let sessionLog = [];
+
+function logSession(entry){
+  sessionLog.unshift(entry);
+  renderSessionSummary();
+}
+
+function renderSessionSummary(){
+  var venduti = sessionLog.filter(function(e){ return e.kind === 'sell'; });
+  var prenotati = sessionLog.filter(function(e){ return e.kind === 'reserve'; });
+  var confermati = sessionLog.filter(function(e){ return e.kind === 'confirm'; });
+  var cashTotal = venduti.filter(function(e){ return e.payment === 'cash'; }).reduce(function(s,e){ return s + e.total; }, 0);
+  var bancomatTotal = venduti.filter(function(e){ return e.payment === 'bancomat'; }).reduce(function(s,e){ return s + e.total; }, 0);
+  var qtyVenduti = venduti.reduce(function(s,e){ return s + e.qty; }, 0);
+  var qtyPrenotati = prenotati.reduce(function(s,e){ return s + e.qty; }, 0);
+
+  if(!sessionLog.length){ document.getElementById('session-summary').innerHTML = ''; return; }
+
+  var rows = sessionLog.slice(0, 12).map(function(e){
+    var tag = e.kind === 'sell' ? (e.payment === 'cash' ? 'Contanti' : 'Bancomat') : (e.kind === 'reserve' ? 'Prenotato' : 'Pag. confermato');
+    return '<div class="sum-item"><span>' + e.name + ' · ' + e.qty + '×' + '</span><span>' + tag + '</span></div>';
+  }).join('');
+
+  document.getElementById('session-summary').innerHTML =
+    '<h2>Riepilogo di stasera</h2>'
+    + '<div class="sum-row"><span>Biglietti venduti</span><b>' + qtyVenduti + '</b></div>'
+    + '<div class="sum-row"><span>· di cui contanti</span><b>' + cashTotal.toFixed(2).replace('.', ',') + ' €</b></div>'
+    + '<div class="sum-row"><span>· di cui bancomat</span><b>' + bancomatTotal.toFixed(2).replace('.', ',') + ' €</b></div>'
+    + '<div class="sum-row"><span>Prenotati (da pagare)</span><b>' + qtyPrenotati + '</b></div>'
+    + '<div class="sum-row"><span>Pagamenti confermati</span><b>' + confermati.length + '</b></div>'
+    + '<div class="sum-list">' + rows + '</div>';
+}
 
 function qtyPickerHTML(){
   return '<label>Quantità</label>'
@@ -205,6 +244,7 @@ function submitSell(){
       }
       var codes = res.data.codes || [res.data.code];
       var totalPrice = (selectedTier.price * codes.length).toFixed(2).replace('.', ',');
+      logSession({ kind: 'sell', name: name, qty: codes.length, payment: selectedPayment, total: selectedTier.price * codes.length });
       document.getElementById('form-wrap').innerHTML =
         '<div class="result">'
         + '<div class="info"><b>' + selectedTier.label + '</b> × ' + codes.length + ' — ' + totalPrice + ' € (' + (selectedPayment === 'cash' ? 'contanti' : 'bancomat') + ')</div>'
@@ -266,6 +306,7 @@ function submitReserve(){
       }
       var codes = res.data.codes || [res.data.code];
       var totalPrice = (selectedTier.price * codes.length).toFixed(2).replace('.', ',');
+      logSession({ kind: 'reserve', name: name, qty: codes.length, payment: '', total: selectedTier.price * codes.length });
       document.getElementById('form-wrap').innerHTML =
         '<div class="result">'
         + '<div class="info"><b>' + selectedTier.label + '</b> × ' + codes.length + ' — ' + totalPrice + ' €</div>'
@@ -357,6 +398,7 @@ function confirmPayment(code){
         return;
       }
       document.getElementById('form-wrap').innerHTML = '<div class="result"><div class="code">✓ Pagamento confermato</div><button id="new-btn">Nuova ricerca</button></div>';
+      logSession({ kind: 'confirm', name: '', qty: 1, payment: selectedPayment, total: 0 });
       document.getElementById('new-btn').onclick = renderTab;
     })
     .catch(function(){
