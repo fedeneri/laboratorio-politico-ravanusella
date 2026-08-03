@@ -70,6 +70,28 @@ let selectedTier = null;
 let selectedPayment = null;
 let adminKey = '';
 let currentTab = 'sell';
+let currentQty = 1;
+
+function qtyPickerHTML(){
+  return '<label>Quantità</label>'
+    + '<div style="display:flex;align-items:center;gap:14px;margin-bottom:4px">'
+    + '<button type="button" id="qty-minus" style="width:44px;margin:0;padding:10px">−</button>'
+    + '<span id="qty-value" style="font-family:monospace;font-size:20px;font-weight:900;min-width:28px;text-align:center">' + currentQty + '</span>'
+    + '<button type="button" id="qty-plus" style="width:44px;margin:0;padding:10px">+</button>'
+    + '</div>';
+}
+function bindQtyPicker(onChange){
+  document.getElementById('qty-minus').onclick = function(){
+    currentQty = Math.max(1, currentQty - 1);
+    document.getElementById('qty-value').textContent = currentQty;
+    onChange();
+  };
+  document.getElementById('qty-plus').onclick = function(){
+    currentQty = Math.min(20, currentQty + 1);
+    document.getElementById('qty-value').textContent = currentQty;
+    onChange();
+  };
+}
 
 document.getElementById('unlock-btn').onclick = function(){
   adminKey = document.getElementById('key').value.trim();
@@ -86,6 +108,7 @@ document.querySelectorAll('.tab').forEach(function(el){
     currentTab = el.dataset.tab;
     selectedTier = null;
     selectedPayment = null;
+    currentQty = 1;
     renderTab();
   };
 });
@@ -119,11 +142,13 @@ function renderSellForm(){
     + '<div class="pay">' + PAYMENTS.map(payOptHTML).join('') + '</div>'
     + '<label for="buyer-name">Nome di chi paga</label>'
     + '<input type="text" id="buyer-name" placeholder="Nome e cognome">'
+    + qtyPickerHTML()
     + '<button id="submit-btn" disabled>Genera biglietto</button>'
     + '<div id="status" class="status"></div>';
 
   bindTierOpts();
   bindPayOpts();
+  bindQtyPicker(checkSellReady);
   document.getElementById('buyer-name').oninput = checkSellReady;
   document.getElementById('submit-btn').onclick = submitSell;
 }
@@ -168,7 +193,7 @@ function submitSell(){
     body: JSON.stringify({
       eventId: EVENT.id, eventTitle: EVENT.title,
       tierId: selectedTier.id, tierLabel: selectedTier.label, price: selectedTier.price,
-      buyerName: name, paymentMethod: selectedPayment
+      buyerName: name, paymentMethod: selectedPayment, qty: currentQty
     })
   })
     .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, data: d }; }); })
@@ -178,11 +203,13 @@ function submitSell(){
         document.getElementById('submit-btn').disabled = false;
         return;
       }
+      var codes = res.data.codes || [res.data.code];
+      var totalPrice = (selectedTier.price * codes.length).toFixed(2).replace('.', ',');
       document.getElementById('form-wrap').innerHTML =
         '<div class="result">'
-        + '<div class="info"><b>' + selectedTier.label + '</b> — ' + selectedTier.price.toFixed(2).replace('.', ',') + ' € (' + (selectedPayment === 'cash' ? 'contanti' : 'bancomat') + ')</div>'
+        + '<div class="info"><b>' + selectedTier.label + '</b> × ' + codes.length + ' — ' + totalPrice + ' € (' + (selectedPayment === 'cash' ? 'contanti' : 'bancomat') + ')</div>'
         + '<div class="info">' + name + '</div>'
-        + '<div class="code">' + res.data.code + '</div>'
+        + codes.map(function(c){ return '<div class="code">' + c + '</div>'; }).join('')
         + '<button id="new-btn">Nuovo biglietto</button>'
         + '</div>';
       document.getElementById('new-btn').onclick = renderTab;
@@ -200,10 +227,12 @@ function renderReserveForm(){
     + '<div class="tiers">' + TIERS.map(tierOptHTML).join('') + '</div>'
     + '<label for="buyer-name">Nome di chi prenota</label>'
     + '<input type="text" id="buyer-name" placeholder="Nome e cognome">'
+    + qtyPickerHTML()
     + '<button id="submit-btn" disabled>Genera codice prenotazione</button>'
     + '<div id="status" class="status"></div>';
 
   bindTierOpts();
+  bindQtyPicker(checkReserveReady);
   document.getElementById('buyer-name').oninput = checkReserveReady;
   document.getElementById('submit-btn').onclick = submitReserve;
 }
@@ -225,7 +254,7 @@ function submitReserve(){
     body: JSON.stringify({
       eventId: EVENT.id, eventTitle: EVENT.title,
       tierId: selectedTier.id, tierLabel: selectedTier.label, price: selectedTier.price,
-      buyerName: name
+      buyerName: name, qty: currentQty
     })
   })
     .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, data: d }; }); })
@@ -235,12 +264,14 @@ function submitReserve(){
         document.getElementById('submit-btn').disabled = false;
         return;
       }
+      var codes = res.data.codes || [res.data.code];
+      var totalPrice = (selectedTier.price * codes.length).toFixed(2).replace('.', ',');
       document.getElementById('form-wrap').innerHTML =
         '<div class="result">'
-        + '<div class="info"><b>' + selectedTier.label + '</b> — ' + selectedTier.price.toFixed(2).replace('.', ',') + ' €</div>'
+        + '<div class="info"><b>' + selectedTier.label + '</b> × ' + codes.length + ' — ' + totalPrice + ' €</div>'
         + '<div class="info">' + name + ' · da pagare all\'ingresso</div>'
-        + '<div class="code pending">' + res.data.code + '</div>'
-        + '<div class="info">Dai questo codice alla persona: le servirà per confermare il pagamento più avanti.</div>'
+        + codes.map(function(c){ return '<div class="code pending">' + c + '</div>'; }).join('')
+        + '<div class="info">Dai questi codici alla persona: le serviranno per confermare il pagamento più avanti.</div>'
         + '<button id="new-btn">Nuova prenotazione</button>'
         + '</div>';
       document.getElementById('new-btn').onclick = renderTab;

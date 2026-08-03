@@ -308,25 +308,30 @@ async function handleBoxOfficeReserve(request, env, origin) {
   const body = await request.json().catch(() => null);
   if (!body || !body.eventId || !body.tierLabel || !body.buyerName) return json({ ok: false, error: 'bad-request' }, 400, origin);
 
-  const code = randomCode();
-  const record = {
-    orderId: 'PRENOTAZIONE-' + code,
-    eventId: body.eventId,
-    tierId: body.tierId || '',
-    tierLabel: body.tierLabel,
-    eventTitle: body.eventTitle || '',
-    buyerEmail: '',
-    buyerName: body.buyerName,
-    paymentMethod: '',
-    price: body.price || '',
-    paid: false,
-    used: false,
-    createdAt: new Date().toISOString(),
-    usedAt: null
-  };
-  await env.TICKETS.put('ticket:' + code, JSON.stringify(record));
+  const qty = Math.max(1, Math.min(20, parseInt(body.qty, 10) || 1));
+  const codes = [];
+  for (let i = 0; i < qty; i++) {
+    const code = randomCode();
+    const record = {
+      orderId: 'PRENOTAZIONE-' + code,
+      eventId: body.eventId,
+      tierId: body.tierId || '',
+      tierLabel: body.tierLabel,
+      eventTitle: body.eventTitle || '',
+      buyerEmail: '',
+      buyerName: body.buyerName,
+      paymentMethod: '',
+      price: body.price || '',
+      paid: false,
+      used: false,
+      createdAt: new Date().toISOString(),
+      usedAt: null
+    };
+    await env.TICKETS.put('ticket:' + code, JSON.stringify(record));
+    codes.push(code);
+  }
 
-  return json({ ok: true, code: code }, 200, origin);
+  return json({ ok: true, code: codes[0], codes: codes }, 200, origin);
 }
 
 async function handleConfirmPayment(request, env, origin, code) {
@@ -363,24 +368,29 @@ async function handleBoxOfficeTicket(request, env, origin) {
   if (!body || !body.eventId || !body.tierLabel || !body.paymentMethod) return json({ ok: false, error: 'bad-request' }, 400, origin);
   if (body.paymentMethod !== 'cash' && body.paymentMethod !== 'bancomat') return json({ ok: false, error: 'bad-payment-method' }, 400, origin);
 
-  const code = randomCode();
-  const record = {
-    orderId: 'BOTTEGHINO-' + code,
-    eventId: body.eventId,
-    tierId: body.tierId || '',
-    tierLabel: body.tierLabel,
-    eventTitle: body.eventTitle || '',
-    buyerEmail: '',
-    buyerName: body.buyerName || '',
-    paymentMethod: body.paymentMethod,
-    price: body.price || '',
-    used: false,
-    createdAt: new Date().toISOString(),
-    usedAt: null
-  };
-  await env.TICKETS.put('ticket:' + code, JSON.stringify(record));
+  const qty = Math.max(1, Math.min(20, parseInt(body.qty, 10) || 1));
+  const codes = [];
+  for (let i = 0; i < qty; i++) {
+    const code = randomCode();
+    const record = {
+      orderId: 'BOTTEGHINO-' + code,
+      eventId: body.eventId,
+      tierId: body.tierId || '',
+      tierLabel: body.tierLabel,
+      eventTitle: body.eventTitle || '',
+      buyerEmail: '',
+      buyerName: body.buyerName || '',
+      paymentMethod: body.paymentMethod,
+      price: body.price || '',
+      used: false,
+      createdAt: new Date().toISOString(),
+      usedAt: null
+    };
+    await env.TICKETS.put('ticket:' + code, JSON.stringify(record));
+    codes.push(code);
+  }
 
-  return json({ ok: true, code: code }, 200, origin);
+  return json({ ok: true, code: codes[0], codes: codes }, 200, origin);
 }
 
 async function handleListTickets(request, env, origin) {
