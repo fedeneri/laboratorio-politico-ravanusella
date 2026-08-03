@@ -244,7 +244,7 @@ async function handleCaptureOrder(request, env, origin) {
         codes: codes,
         eventTitle: body.eventTitle || '',
         tierLabel: body.tierLabel || '',
-        verifyUrlBase: 'https://scaro.it/verifica.html?c='
+        verifyUrlBase: 'https://scaro.it/gestionale.html?c='
       });
       emailSent = emailResult.ok;
       if (!emailResult.ok) emailError = emailResult.detail || '';
@@ -288,7 +288,7 @@ async function handleTestTicket(request, env, origin) {
         codes: [code],
         eventTitle: record.eventTitle,
         tierLabel: record.tierLabel,
-        verifyUrlBase: 'https://scaro.it/verifica.html?c='
+        verifyUrlBase: 'https://scaro.it/gestionale.html?c='
       });
       emailSent = emailResult.ok;
       if (!emailResult.ok) emailError = emailResult.detail || '';
@@ -476,7 +476,7 @@ async function handleReconcileCreateTicket(request, env, origin) {
         codes: codes,
         eventTitle: body.eventTitle || '',
         tierLabel: body.tierLabel || '',
-        verifyUrlBase: 'https://scaro.it/verifica.html?c='
+        verifyUrlBase: 'https://scaro.it/gestionale.html?c='
       });
       emailSent = r.ok;
       if (!r.ok) emailError = r.detail || '';
@@ -657,7 +657,7 @@ async function handleResendTickets(request, env, origin) {
         codes: g.codes,
         eventTitle: g.eventTitle || 'Evento Scaro',
         tierLabel: g.tierLabel || '',
-        verifyUrlBase: 'https://scaro.it/verifica.html?c=',
+        verifyUrlBase: 'https://scaro.it/gestionale.html?c=',
         resend: true
       });
       risultati.push({ email: g.buyerEmail, ok: r.ok, detail: r.detail || '' });

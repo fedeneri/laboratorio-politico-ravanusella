@@ -106,6 +106,25 @@ function unlock(){
   renderView();
 }
 
+function getCodeFromUrl(){
+  var m = location.search.match(/[?&]c=([^&]+)/);
+  return m ? decodeURIComponent(m[1]).toUpperCase() : '';
+}
+
+var urlCode = getCodeFromUrl();
+if(urlCode){
+  // Da QR: il check-in singolo non richiede la chiave admin, quindi si salta
+  // la schermata di accesso e si va dritti alla verifica del biglietto.
+  document.getElementById('gate').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.querySelectorAll('.nav-btn').forEach(function(t){ t.classList.remove('active'); });
+  document.querySelector('.nav-btn[data-view="checkin-code"]').classList.add('active');
+  currentView = 'checkin-code';
+  renderView();
+  document.getElementById('checkin-code').value = urlCode;
+  checkTicketCode(urlCode);
+}
+
 document.getElementById('unlock-btn').onclick = function(){
   adminKey = document.getElementById('key').value.trim();
   if(!adminKey){ document.getElementById('gate-status').innerHTML = '<span class="bad">Inserisci la chiave.</span>'; return; }
@@ -113,7 +132,8 @@ document.getElementById('unlock-btn').onclick = function(){
   unlock();
 };
 var savedKey = localStorage.getItem('scaro_admin_key');
-if(savedKey){ adminKey = savedKey; unlock(); }
+if(savedKey && !urlCode){ adminKey = savedKey; unlock(); }
+if(savedKey && urlCode){ adminKey = savedKey; }
 
 document.querySelectorAll('.nav-btn').forEach(function(el){
   el.onclick = function(){
