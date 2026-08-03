@@ -74,6 +74,7 @@ tr:nth-child(even){background:#F8EFE2}
     <div class="nav-btn" data-view="checkin-code">Check-in</div>
     <div class="nav-btn" data-view="checkin-email">Check-in gruppo</div>
     <div class="nav-btn" data-view="list">Lista</div>
+    <div class="nav-btn" data-view="reconcile">Pagamenti</div>
   </div>
   <div id="view-wrap" class="card"></div>
 </div>
@@ -135,6 +136,7 @@ function renderView(){
   else if(currentView === 'checkin-code') renderCheckinCodeForm();
   else if(currentView === 'checkin-email') renderCheckinEmailForm();
   else if(currentView === 'list') renderListView();
+  else if(currentView === 'reconcile') renderReconcileView();
 }
 
 function tierOptHTML(t){
@@ -461,6 +463,67 @@ function loadList(){
         renderTicketTable(filtered);
       };
       renderTicketTable(allTickets);
+    })
+    .catch(function(){ status.innerHTML = '<span class="bad">Errore di rete, riprova.</span>'; });
+}
+/* --- Pagamenti PayPal senza biglietto (con avviso: il confronto puo' dare
+   falsi positivi, verificare sempre a mano prima di generare) --- */
+function renderReconcileView(){
+  document.getElementById('view-wrap').innerHTML =
+    '<h1>Pagamenti PayPal</h1>'
+    + '<div class="info" style="background:#fff6cf;border:2px solid #164194;padding:10px;margin-bottom:14px">⚠️ Questo confronto a volte segnala per errore pagamenti come "mancanti" anche se il biglietto esiste già. <b>Prima di generare, controlla nella scheda "Lista" (cerca il nome o l\'email) che non ci sia già.</b></div>'
+    + '<label for="reconcile-key">Chiave riconciliazione</label><input type="password" id="reconcile-key" placeholder="RECONCILE_KEY">'
+    + '<label for="reconcile-days">Ultimi quanti giorni</label><input type="text" id="reconcile-days" value="3" style="max-width:80px">'
+    + '<button id="reconcile-btn">Cerca pagamenti mancanti</button>'
+    + '<div id="status" class="status"></div><div id="reconcile-result"></div>';
+  document.getElementById('reconcile-btn').onclick = searchReconcile;
+}
+function searchReconcile(){
+  var rkey = document.getElementById('reconcile-key').value.trim();
+  var days = document.getElementById('reconcile-days').value.trim() || '3';
+  var status = document.getElementById('status');
+  var result = document.getElementById('reconcile-result');
+  if(!rkey){ status.innerHTML = '<span class="bad">Inserisci la chiave di riconciliazione.</span>'; return; }
+  status.textContent = 'Ricerca in corso…';
+  result.innerHTML = '';
+  fetch(API_BASE + '/api/reconcile?days=' + encodeURIComponent(days), { headers: { 'X-Reconcile-Key': rkey } })
+    .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, data: d }; }); })
+    .then(function(res){
+      if(!res.ok || !res.data.ok){ status.innerHTML = '<span class="bad">' + (res.data && res.data.error === 'unauthorized' ? 'Chiave sbagliata.' : 'Errore, riprova.') + '</span>'; return; }
+      var missing = res.data.dettaglio || [];
+      status.textContent = res.data.transazioniCompletate + ' pagamenti esaminati · ' + missing.length + ' segnalati come mancanti';
+      if(!missing.length){ result.innerHTML = '<div class="info">Nessuno.</div>'; return; }
+      var tierOptions = TIERS.map(function(t){ return '<option value="' + t.id + '">' + t.label + ' (' + t.price + ' €)</option>'; }).join('');
+      result.innerHTML = missing.map(function(m, i){
+        return '<div style="border:2px solid #164194;padding:12px;margin-bottom:10px">'
+          + '<div><b>' + (m.payerName || 'Nome sconosciuto') + '</b> — ' + (m.payerEmail || 'email sconosciuta') + '</div>'
+          + '<div style="font-size:11px;color:#444">' + m.amount + ' ' + m.currency + ' · ' + (m.date || '') + '</div>'
+          + '<select id="rec-tier-' + i + '" style="width:100%;padding:8px;border:2px solid #164194;font-family:inherit;margin-top:8px">' + tierOptions + '</select>'
+          + '<button data-idx="' + i + '" class="rec-gen-btn">Genera biglietto (dopo aver controllato la Lista)</button>'
+          + '<div id="rec-status-' + i + '" class="status"></div>'
+          + '</div>';
+      }).join('');
+      document.querySelectorAll('.rec-gen-btn').forEach(function(btn){
+        btn.onclick = function(){
+          var i = btn.dataset.idx;
+          var m = missing[i];
+          var tierId = document.getElementById('rec-tier-' + i).value;
+          var tier = TIERS.find(function(t){ return t.id === tierId; });
+          var rstatus = document.getElementById('rec-status-' + i);
+          rstatus.textContent = 'Generazione in corso…';
+          fetch(API_BASE + '/api/reconcile-create-ticket', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+            body: JSON.stringify({ orderId: m.orderId, eventId: EVENT.id, eventTitle: EVENT.title, tierId: tier.id, tierLabel: tier.label, buyerEmail: m.payerEmail, buyerName: m.payerName })
+          })
+            .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, data: d }; }); })
+            .then(function(res2){
+              if(!res2.ok || !res2.data.ok){ rstatus.innerHTML = '<span class="bad">Errore, riprova.</span>'; return; }
+              rstatus.innerHTML = '<span class="ok-text">✓ ' + res2.data.code + (res2.data.alreadyIssued ? ' (era già stato generato)' : '') + '</span>';
+              btn.disabled = true;
+            })
+            .catch(function(){ rstatus.innerHTML = '<span class="bad">Errore di rete.</span>'; });
+        };
+      });
     })
     .catch(function(){ status.innerHTML = '<span class="bad">Errore di rete, riprova.</span>'; });
 }
