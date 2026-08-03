@@ -410,9 +410,34 @@ function checkinByEmail(email){
 }
 
 /* --- Lista --- */
+let allTickets = [];
 function renderListView(){
   document.getElementById('view-wrap').innerHTML = '<h1>Lista biglietti</h1><button id="load-list-btn">Carica / aggiorna</button><div id="status" class="status"></div><div id="list-result"></div>';
   document.getElementById('load-list-btn').onclick = loadList;
+}
+function payLabelFor(t){ if(t.paid === false) return 'Da pagare'; if(t.paymentMethod === 'cash') return 'Contanti'; if(t.paymentMethod === 'bancomat') return 'Bancomat'; return 'PayPal'; }
+function renderTicketRows(tickets){
+  return tickets.map(function(t){
+    return '<tr><td>' + (t.createdAt ? new Date(t.createdAt).toLocaleTimeString('it-IT') : '') + '</td><td>' + (t.tierLabel||'') + '</td><td>' + (t.buyerName||'') + '</td><td>' + (t.buyerEmail||'') + '</td><td>' + payLabelFor(t) + '</td><td>' + t.code + '</td><td class="' + (t.used ? 'used-yes' : 'used-no') + '">' + (t.used ? '✓' : '—') + '</td><td><button class="del-btn" data-code="' + t.code + '">Elim.</button></td></tr>';
+  }).join('');
+}
+function bindDeleteButtons(){
+  document.querySelectorAll('.del-btn').forEach(function(btn){
+    btn.onclick = function(){
+      var code = btn.dataset.code;
+      if(!confirm('Eliminare ' + code + '?')) return;
+      fetch(API_BASE + '/api/ticket/' + encodeURIComponent(code), { method: 'DELETE', headers: { 'X-Admin-Key': adminKey } })
+        .then(function(r){ return r.json(); })
+        .then(function(d){ if(d && d.ok){ allTickets = allTickets.filter(function(t){ return t.code !== code; }); btn.closest('tr').remove(); } else { alert('Errore.'); } })
+        .catch(function(){ alert('Errore di rete.'); });
+    };
+  });
+}
+function renderTicketTable(tickets){
+  var usedCount = tickets.filter(function(t){ return t.used; }).length;
+  var table = '<div class="summary">' + tickets.length + ' mostrati · ' + usedCount + ' entrati</div><div style="overflow-x:auto"><table><thead><tr><th>Ora</th><th>Tariffa</th><th>Nome</th><th>Email</th><th>Pag.</th><th>Codice</th><th>In</th><th></th></tr></thead><tbody>' + renderTicketRows(tickets) + '</tbody></table></div>';
+  document.getElementById('table-wrap').innerHTML = table;
+  bindDeleteButtons();
 }
 function loadList(){
   var status = document.getElementById('status');
@@ -424,25 +449,18 @@ function loadList(){
     .then(function(res){
       if(!res.ok || !res.data.ok){ status.innerHTML = '<span class="bad">' + (res.data && res.data.error === 'unauthorized' ? 'Chiave sbagliata.' : 'Errore.') + '</span>'; return; }
       var excludedEmails = ['fedeneri.fm'];
-      var tickets = (res.data.tickets || []).filter(function(t){ return !excludedEmails.some(function(ex){ return (t.buyerEmail||'').toLowerCase().indexOf(ex) !== -1; }); });
-      if(!tickets.length){ status.textContent = ''; result.innerHTML = '<div class="info">Nessun biglietto.</div>'; return; }
-      var usedCount = tickets.filter(function(t){ return t.used; }).length;
+      allTickets = (res.data.tickets || []).filter(function(t){ return !excludedEmails.some(function(ex){ return (t.buyerEmail||'').toLowerCase().indexOf(ex) !== -1; }); });
       status.textContent = '';
-      var payLabel = function(t){ if(t.paid === false) return 'Da pagare'; if(t.paymentMethod === 'cash') return 'Contanti'; if(t.paymentMethod === 'bancomat') return 'Bancomat'; return 'PayPal'; };
-      var rows = tickets.map(function(t){
-        return '<tr><td>' + (t.createdAt ? new Date(t.createdAt).toLocaleTimeString('it-IT') : '') + '</td><td>' + (t.tierLabel||'') + '</td><td>' + (t.buyerName||'') + '</td><td>' + payLabel(t) + '</td><td>' + t.code + '</td><td class="' + (t.used ? 'used-yes' : 'used-no') + '">' + (t.used ? '✓' : '—') + '</td><td><button class="del-btn" data-code="' + t.code + '">Elim.</button></td></tr>';
-      }).join('');
-      result.innerHTML = '<div class="summary">' + tickets.length + ' totali · ' + usedCount + ' entrati</div><div style="overflow-x:auto"><table><thead><tr><th>Ora</th><th>Tariffa</th><th>Nome</th><th>Pag.</th><th>Codice</th><th>In</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>';
-      document.querySelectorAll('.del-btn').forEach(function(btn){
-        btn.onclick = function(){
-          var code = btn.dataset.code;
-          if(!confirm('Eliminare ' + code + '?')) return;
-          fetch(API_BASE + '/api/ticket/' + encodeURIComponent(code), { method: 'DELETE', headers: { 'X-Admin-Key': adminKey } })
-            .then(function(r){ return r.json(); })
-            .then(function(d){ if(d && d.ok){ btn.closest('tr').remove(); } else { alert('Errore.'); } })
-            .catch(function(){ alert('Errore di rete.'); });
-        };
-      });
+      if(!allTickets.length){ result.innerHTML = '<div class="info">Nessun biglietto.</div>'; return; }
+      result.innerHTML = '<input type="text" id="search-box" placeholder="Cerca per nome o email…" style="text-transform:none;margin-bottom:12px"><div id="table-wrap"></div>';
+      document.getElementById('search-box').oninput = function(){
+        var q = this.value.trim().toLowerCase();
+        var filtered = !q ? allTickets : allTickets.filter(function(t){
+          return (t.buyerName||'').toLowerCase().indexOf(q) !== -1 || (t.buyerEmail||'').toLowerCase().indexOf(q) !== -1;
+        });
+        renderTicketTable(filtered);
+      };
+      renderTicketTable(allTickets);
     })
     .catch(function(){ status.innerHTML = '<span class="bad">Errore di rete, riprova.</span>'; });
 }
