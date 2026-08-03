@@ -411,12 +411,12 @@ async function handleCheckinByEmail(request, env, origin) {
     const t = JSON.parse(raw);
     if ((t.buyerEmail || '').toLowerCase() !== email) continue;
     const code = k.name.replace(/^ticket:/, '');
-    if (t.paid === false) { results.push({ code, status: 'not-paid' }); continue; }
-    if (t.used) { results.push({ code, status: 'already-used' }); continue; }
+    if (t.paid === false) { results.push({ code, status: 'not-paid', tierLabel: t.tierLabel, buyerName: t.buyerName }); continue; }
+    if (t.used) { results.push({ code, status: 'already-used', tierLabel: t.tierLabel, buyerName: t.buyerName }); continue; }
     t.used = true;
     t.usedAt = new Date().toISOString();
     await env.TICKETS.put(k.name, JSON.stringify(t));
-    results.push({ code, status: 'checked-in' });
+    results.push({ code, status: 'checked-in', tierLabel: t.tierLabel, buyerName: t.buyerName });
   }
 
   return json({ ok: true, results: results }, 200, origin);

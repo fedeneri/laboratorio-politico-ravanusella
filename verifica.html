@@ -18,17 +18,38 @@ h1{font-size:15px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:22p
 button{font-family:inherit;font-size:14px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:14px 22px;border:2px solid #164194;background:#E8D7BE;color:#164194;cursor:pointer;width:100%;margin-top:8px}
 button:active{opacity:.8}
 input{font-family:monospace;font-size:18px;text-align:center;padding:12px;width:100%;border:2px solid #164194;margin-bottom:12px;text-transform:uppercase}
+.tabs{display:flex;gap:6px;margin-bottom:18px}
+.tab{flex:1;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:10px 4px;border:2px solid #164194;background:#fff;cursor:pointer;color:#164194}
+.tab.active{background:#164194;color:#F4E7DB}
+.result-row{text-align:left;font-size:13px;padding:8px 10px;border:1px solid #164194;margin-bottom:6px}
+.result-row.ok{background:#d4f4dd}
+.result-row.warn{background:#fbdcdc}
 </style>
 </head>
 <body>
 <div class="card">
   <h1>Verifica biglietto — Scaro</h1>
+  <div class="tabs">
+    <div class="tab active" data-mode="code">Codice</div>
+    <div class="tab" data-mode="email">Email (gruppo)</div>
+  </div>
   <div id="content">Caricamento…</div>
 </div>
 <script>
 /* ← sostituisci con l'URL del Worker dopo averlo pubblicato, es:
    https://scaro-biglietti.tuoaccount.workers.dev */
 const API_BASE = 'https://scaro-biglietti.scaro.workers.dev';
+let mode = 'code';
+let adminKey = '';
+
+document.querySelectorAll('.tab').forEach(function(el){
+  el.onclick = function(){
+    document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+    el.classList.add('active');
+    mode = el.dataset.mode;
+    if(mode === 'code') showManualForm(); else showEmailForm();
+  };
+});
 
 function getCodeFromUrl(){
   var m = location.search.match(/[?&]c=([^&]+)/);
@@ -102,6 +123,58 @@ function doCheckin(code){
 
 var initial = getCodeFromUrl();
 if(initial) checkCode(initial); else showManualForm();
+
+/* --- Modalità email: check-in di gruppo --- */
+function showEmailForm(){
+  render(
+    '<input id="admin-key" type="password" placeholder="Chiave admin" style="text-transform:none">' +
+    '<input id="group-email" placeholder="Email acquirente" style="text-transform:none">' +
+    '<button id="group-btn">Fai check-in al gruppo</button>'
+  );
+  document.getElementById('group-btn').onclick = function(){
+    adminKey = document.getElementById('admin-key').value.trim();
+    var email = document.getElementById('group-email').value.trim();
+    if(!adminKey){ render('<div class="status bad">Inserisci la chiave admin</div><button id="retry-btn">Riprova</button>'); document.getElementById('retry-btn').onclick = showEmailForm; return; }
+    if(!email){ render('<div class="status bad">Inserisci un\'email</div><button id="retry-btn">Riprova</button>'); document.getElementById('retry-btn').onclick = showEmailForm; return; }
+    checkinByEmail(email);
+  };
+}
+
+function checkinByEmail(email){
+  render('Check-in in corso…');
+  fetch(API_BASE + '/api/tickets/checkin-by-email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+    body: JSON.stringify({ email: email })
+  })
+    .then(function(r){ return r.json().then(function(d){ return { ok:r.ok, data:d }; }); })
+    .then(function(res){
+      if(!res.ok || !res.data.ok){
+        var msg = res.data && res.data.error === 'unauthorized' ? 'Chiave admin sbagliata' : 'Errore, riprova';
+        render('<div class="status bad">' + msg + '</div><button id="retry-btn">Riprova</button>');
+        document.getElementById('retry-btn').onclick = showEmailForm;
+        return;
+      }
+      var results = res.data.results || [];
+      if(!results.length){
+        render('<div class="status bad">Nessun biglietto trovato per questa email</div><button id="retry-btn">Prova un\'altra email</button>');
+        document.getElementById('retry-btn').onclick = showEmailForm;
+        return;
+      }
+      var labels = { 'checked-in': '✓ Ingresso registrato', 'already-used': '✗ Già entrato prima', 'not-paid': '✗ Non pagato' };
+      var rows = results.map(function(r){
+        var cls = r.status === 'checked-in' ? 'ok' : 'warn';
+        return '<div class="result-row ' + cls + '"><b>' + r.code + '</b> — ' + (r.tierLabel||'') + '<br>' + labels[r.status] + '</div>';
+      }).join('');
+      var checkedIn = results.filter(function(r){ return r.status === 'checked-in'; }).length;
+      render('<div class="status ok">' + checkedIn + ' / ' + results.length + ' registrati ora</div>' + rows + '<button id="again-btn">Nuova ricerca</button>');
+      document.getElementById('again-btn').onclick = showEmailForm;
+    })
+    .catch(function(){
+      render('<div class="status bad">Errore di rete</div><button id="retry-btn">Riprova</button>');
+      document.getElementById('retry-btn').onclick = showEmailForm;
+    });
+}
 </script>
 </body>
 </html>
