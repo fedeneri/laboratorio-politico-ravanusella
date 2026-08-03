@@ -55,7 +55,7 @@ function corsHeaders(origin) {
   return {
     'Access-Control-Allow-Origin': allow,
     'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-Test-Key, X-Admin-Key',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Test-Key, X-Admin-Key, X-Reconcile-Key',
     'Vary': 'Origin'
   };
 }
