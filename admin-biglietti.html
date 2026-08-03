@@ -70,6 +70,7 @@ document.getElementById('load-btn').onclick = function(){
       }
       var usedCount = tickets.filter(function(t){ return t.used; }).length;
       var payLabel = function(t){
+        if(t.paid === false) return '<span class="bad">Da pagare</span>';
         if(t.paymentMethod === 'cash') return 'Contanti (botteghino)';
         if(t.paymentMethod === 'bancomat') return 'Bancomat (botteghino)';
         return 'Online (PayPal)';

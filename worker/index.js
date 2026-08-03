@@ -298,6 +298,60 @@ async function handleTestTicket(request, env, origin) {
   return json({ ok: true, code: code, emailSent: emailSent, emailError: emailError }, 200, origin);
 }
 
+async function handleBoxOfficeReserve(request, env, origin) {
+  // Prenotazione senza pagamento immediato: il codice viene dato alla persona
+  // subito, il pagamento si conferma dopo (vedi handleConfirmPayment) quando
+  // arriva davvero al botteghino.
+  const key = request.headers.get('X-Admin-Key') || '';
+  if (!env.ADMIN_KEY || key !== env.ADMIN_KEY) return json({ ok: false, error: 'unauthorized' }, 401, origin);
+
+  const body = await request.json().catch(() => null);
+  if (!body || !body.eventId || !body.tierLabel || !body.buyerName) return json({ ok: false, error: 'bad-request' }, 400, origin);
+
+  const code = randomCode();
+  const record = {
+    orderId: 'PRENOTAZIONE-' + code,
+    eventId: body.eventId,
+    tierId: body.tierId || '',
+    tierLabel: body.tierLabel,
+    eventTitle: body.eventTitle || '',
+    buyerEmail: '',
+    buyerName: body.buyerName,
+    paymentMethod: '',
+    price: body.price || '',
+    paid: false,
+    used: false,
+    createdAt: new Date().toISOString(),
+    usedAt: null
+  };
+  await env.TICKETS.put('ticket:' + code, JSON.stringify(record));
+
+  return json({ ok: true, code: code }, 200, origin);
+}
+
+async function handleConfirmPayment(request, env, origin, code) {
+  // Conferma il pagamento di una prenotazione esistente, inserendo il codice
+  // che il cliente ha ricevuto al momento della prenotazione.
+  const key = request.headers.get('X-Admin-Key') || '';
+  if (!env.ADMIN_KEY || key !== env.ADMIN_KEY) return json({ ok: false, error: 'unauthorized' }, 401, origin);
+
+  const body = await request.json().catch(() => null);
+  if (!body || !body.paymentMethod) return json({ ok: false, error: 'bad-request' }, 400, origin);
+  if (body.paymentMethod !== 'cash' && body.paymentMethod !== 'bancomat') return json({ ok: false, error: 'bad-payment-method' }, 400, origin);
+
+  const raw = await env.TICKETS.get('ticket:' + code);
+  if (!raw) return json({ ok: false, error: 'not-found' }, 404, origin);
+  const t = JSON.parse(raw);
+  if (t.paid !== false) return json({ ok: false, error: 'already-paid' }, 409, origin);
+
+  t.paid = true;
+  t.paymentMethod = body.paymentMethod;
+  t.paidAt = new Date().toISOString();
+  await env.TICKETS.put('ticket:' + code, JSON.stringify(t));
+
+  return json({ ok: true, buyerName: t.buyerName, eventTitle: t.eventTitle, tierLabel: t.tierLabel }, 200, origin);
+}
+
 async function handleBoxOfficeTicket(request, env, origin) {
   // Biglietto venduto di persona al botteghino (contanti o bancomat), senza
   // passare da PayPal. Protetto dalla stessa ADMIN_KEY usata per la lista
@@ -349,6 +403,7 @@ async function handleListTickets(request, env, origin) {
       buyerName: t.buyerName,
       buyerEmail: t.buyerEmail,
       paymentMethod: t.paymentMethod || '',
+      paid: t.paid !== false,
       orderId: t.orderId || '',
       used: t.used,
       usedAt: t.usedAt,
@@ -363,13 +418,14 @@ async function handleTicketStatus(env, origin, code) {
   const raw = await env.TICKETS.get('ticket:' + code);
   if (!raw) return json({ ok: false, error: 'not-found' }, 404, origin);
   const t = JSON.parse(raw);
-  return json({ ok: true, used: t.used, usedAt: t.usedAt, eventTitle: t.eventTitle, tierLabel: t.tierLabel, buyerName: t.buyerName }, 200, origin);
+  return json({ ok: true, used: t.used, usedAt: t.usedAt, eventTitle: t.eventTitle, tierLabel: t.tierLabel, buyerName: t.buyerName, paid: t.paid !== false }, 200, origin);
 }
 
 async function handleCheckin(env, origin, code) {
   const raw = await env.TICKETS.get('ticket:' + code);
   if (!raw) return json({ ok: false, error: 'not-found' }, 404, origin);
   const t = JSON.parse(raw);
+  if (t.paid === false) return json({ ok: false, error: 'not-paid', buyerName: t.buyerName, eventTitle: t.eventTitle, tierLabel: t.tierLabel }, 402, origin);
   if (t.used) return json({ ok: false, error: 'already-used', usedAt: t.usedAt, buyerName: t.buyerName }, 409, origin);
   t.used = true;
   t.usedAt = new Date().toISOString();
@@ -725,6 +781,13 @@ export default {
     }
     if (url.pathname === '/api/box-office-ticket' && request.method === 'POST') {
       return handleBoxOfficeTicket(request, env, origin);
+    }
+    if (url.pathname === '/api/box-office-reserve' && request.method === 'POST') {
+      return handleBoxOfficeReserve(request, env, origin);
+    }
+    const confirmMatch = url.pathname.match(/^\/api\/ticket\/([A-Z0-9-]+)\/confirm-payment$/i);
+    if (confirmMatch && request.method === 'POST') {
+      return handleConfirmPayment(request, env, origin, confirmMatch[1].toUpperCase());
     }
     const statusMatch = url.pathname.match(/^\/api\/ticket\/([A-Z0-9-]+)$/i);
     if (statusMatch && request.method === 'GET') {

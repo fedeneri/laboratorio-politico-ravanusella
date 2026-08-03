@@ -25,8 +25,13 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .bad{color:#b3261e;font-weight:600}
 .result{text-align:center}
 .code{font-family:monospace;font-size:28px;letter-spacing:3px;font-weight:900;margin:18px 0;padding:18px;border:3px solid #1b5e20;background:#d4f4dd;color:#1b5e20}
+.code.pending{border-color:#b3261e;background:#fbdcdc;color:#b3261e}
 .result .info{font-size:13px;color:#444;margin-bottom:6px}
 #admin-gate label{margin-top:0}
+.tabs{display:flex;gap:6px;margin-bottom:18px}
+.tab{flex:1;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:10px 4px;border:2px solid #164194;background:#fff;cursor:pointer;color:#164194}
+.tab.active{background:#164194;color:#F4E7DB}
+button.secondary{background:#E8D7BE;color:#164194}
 </style>
 </head>
 <body>
@@ -38,7 +43,14 @@ button:disabled{opacity:.5;cursor:not-allowed}
     <button id="unlock-btn">Entra</button>
     <div id="gate-status" class="status"></div>
   </div>
-  <div id="form-wrap" style="display:none"></div>
+  <div id="tabs-wrap" style="display:none">
+    <div class="tabs">
+      <div class="tab active" data-tab="sell">Vendita</div>
+      <div class="tab" data-tab="reserve">Prenota</div>
+      <div class="tab" data-tab="confirm">Conferma pag.</div>
+    </div>
+    <div id="form-wrap"></div>
+  </div>
 </div>
 <script>
 const API_BASE = 'https://scaro-biglietti.scaro.workers.dev';
@@ -57,14 +69,32 @@ const PAYMENTS = [
 let selectedTier = null;
 let selectedPayment = null;
 let adminKey = '';
+let currentTab = 'sell';
 
 document.getElementById('unlock-btn').onclick = function(){
   adminKey = document.getElementById('key').value.trim();
   if(!adminKey){ document.getElementById('gate-status').innerHTML = '<span class="bad">Inserisci la chiave.</span>'; return; }
   document.getElementById('admin-gate').style.display = 'none';
-  document.getElementById('form-wrap').style.display = 'block';
-  renderForm();
+  document.getElementById('tabs-wrap').style.display = 'block';
+  renderTab();
 };
+
+document.querySelectorAll('.tab').forEach(function(el){
+  el.onclick = function(){
+    document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+    el.classList.add('active');
+    currentTab = el.dataset.tab;
+    selectedTier = null;
+    selectedPayment = null;
+    renderTab();
+  };
+});
+
+function renderTab(){
+  if(currentTab === 'sell') renderSellForm();
+  else if(currentTab === 'reserve') renderReserveForm();
+  else renderConfirmForm();
+}
 
 function tierOptHTML(t){
   return '<div class="opt" data-tier="' + t.id + '">'
@@ -80,7 +110,8 @@ function payOptHTML(p){
     + '</div>';
 }
 
-function renderForm(){
+/* --- Vendita diretta: pagamento subito --- */
+function renderSellForm(){
   document.getElementById('form-wrap').innerHTML =
     '<label>Tariffa</label>'
     + '<div class="tiers">' + TIERS.map(tierOptHTML).join('') + '</div>'
@@ -91,34 +122,41 @@ function renderForm(){
     + '<button id="submit-btn" disabled>Genera biglietto</button>'
     + '<div id="status" class="status"></div>';
 
+  bindTierOpts();
+  bindPayOpts();
+  document.getElementById('buyer-name').oninput = checkSellReady;
+  document.getElementById('submit-btn').onclick = submitSell;
+}
+
+function bindTierOpts(){
   document.querySelectorAll('.opt[data-tier]').forEach(function(el){
     el.onclick = function(){
       document.querySelectorAll('.opt[data-tier]').forEach(function(o){ o.classList.remove('selected'); });
       el.classList.add('selected');
       el.querySelector('input').checked = true;
       selectedTier = TIERS.find(function(t){ return t.id === el.dataset.tier; });
-      checkReady();
+      currentTab === 'sell' ? checkSellReady() : checkReserveReady();
     };
   });
+}
+function bindPayOpts(){
   document.querySelectorAll('.opt[data-pay]').forEach(function(el){
     el.onclick = function(){
       document.querySelectorAll('.opt[data-pay]').forEach(function(o){ o.classList.remove('selected'); });
       el.classList.add('selected');
       el.querySelector('input').checked = true;
       selectedPayment = el.dataset.pay;
-      checkReady();
+      checkSellReady();
     };
   });
-  document.getElementById('buyer-name').oninput = checkReady;
-  document.getElementById('submit-btn').onclick = submitTicket;
 }
 
-function checkReady(){
+function checkSellReady(){
   var name = document.getElementById('buyer-name').value.trim();
   document.getElementById('submit-btn').disabled = !(selectedTier && selectedPayment && name);
 }
 
-function submitTicket(){
+function submitSell(){
   var name = document.getElementById('buyer-name').value.trim();
   var status = document.getElementById('status');
   status.textContent = 'Generazione in corso…';
@@ -128,13 +166,9 @@ function submitTicket(){
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
     body: JSON.stringify({
-      eventId: EVENT.id,
-      eventTitle: EVENT.title,
-      tierId: selectedTier.id,
-      tierLabel: selectedTier.label,
-      price: selectedTier.price,
-      buyerName: name,
-      paymentMethod: selectedPayment
+      eventId: EVENT.id, eventTitle: EVENT.title,
+      tierId: selectedTier.id, tierLabel: selectedTier.label, price: selectedTier.price,
+      buyerName: name, paymentMethod: selectedPayment
     })
   })
     .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, data: d }; }); })
@@ -151,11 +185,152 @@ function submitTicket(){
         + '<div class="code">' + res.data.code + '</div>'
         + '<button id="new-btn">Nuovo biglietto</button>'
         + '</div>';
-      document.getElementById('new-btn').onclick = function(){ selectedTier = null; selectedPayment = null; renderForm(); };
+      document.getElementById('new-btn').onclick = renderTab;
     })
     .catch(function(){
       status.innerHTML = '<span class="bad">Errore di rete, riprova.</span>';
       document.getElementById('submit-btn').disabled = false;
+    });
+}
+
+/* --- Prenotazione: nessun pagamento adesso, si conferma dopo --- */
+function renderReserveForm(){
+  document.getElementById('form-wrap').innerHTML =
+    '<label>Tariffa</label>'
+    + '<div class="tiers">' + TIERS.map(tierOptHTML).join('') + '</div>'
+    + '<label for="buyer-name">Nome di chi prenota</label>'
+    + '<input type="text" id="buyer-name" placeholder="Nome e cognome">'
+    + '<button id="submit-btn" disabled>Genera codice prenotazione</button>'
+    + '<div id="status" class="status"></div>';
+
+  bindTierOpts();
+  document.getElementById('buyer-name').oninput = checkReserveReady;
+  document.getElementById('submit-btn').onclick = submitReserve;
+}
+
+function checkReserveReady(){
+  var name = document.getElementById('buyer-name').value.trim();
+  document.getElementById('submit-btn').disabled = !(selectedTier && name);
+}
+
+function submitReserve(){
+  var name = document.getElementById('buyer-name').value.trim();
+  var status = document.getElementById('status');
+  status.textContent = 'Generazione in corso…';
+  document.getElementById('submit-btn').disabled = true;
+
+  fetch(API_BASE + '/api/box-office-reserve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+    body: JSON.stringify({
+      eventId: EVENT.id, eventTitle: EVENT.title,
+      tierId: selectedTier.id, tierLabel: selectedTier.label, price: selectedTier.price,
+      buyerName: name
+    })
+  })
+    .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, data: d }; }); })
+    .then(function(res){
+      if(!res.ok || !res.data.ok){
+        status.innerHTML = '<span class="bad">' + (res.data && res.data.error === 'unauthorized' ? 'Chiave sbagliata.' : 'Errore, riprova.') + '</span>';
+        document.getElementById('submit-btn').disabled = false;
+        return;
+      }
+      document.getElementById('form-wrap').innerHTML =
+        '<div class="result">'
+        + '<div class="info"><b>' + selectedTier.label + '</b> — ' + selectedTier.price.toFixed(2).replace('.', ',') + ' €</div>'
+        + '<div class="info">' + name + ' · da pagare all\'ingresso</div>'
+        + '<div class="code pending">' + res.data.code + '</div>'
+        + '<div class="info">Dai questo codice alla persona: le servirà per confermare il pagamento più avanti.</div>'
+        + '<button id="new-btn">Nuova prenotazione</button>'
+        + '</div>';
+      document.getElementById('new-btn').onclick = renderTab;
+    })
+    .catch(function(){
+      status.innerHTML = '<span class="bad">Errore di rete, riprova.</span>';
+      document.getElementById('submit-btn').disabled = false;
+    });
+}
+
+/* --- Conferma pagamento di una prenotazione esistente --- */
+function renderConfirmForm(){
+  document.getElementById('form-wrap').innerHTML =
+    '<label for="lookup-code">Codice biglietto</label>'
+    + '<input type="text" id="lookup-code" placeholder="XXXX-XXXX-XX" maxlength="14" style="text-transform:uppercase">'
+    + '<button id="lookup-btn">Cerca</button>'
+    + '<div id="status" class="status"></div>'
+    + '<div id="lookup-result"></div>';
+
+  document.getElementById('lookup-btn').onclick = lookupCode;
+}
+
+function lookupCode(){
+  var code = document.getElementById('lookup-code').value.trim().toUpperCase();
+  var status = document.getElementById('status');
+  var result = document.getElementById('lookup-result');
+  result.innerHTML = '';
+  if(!code){ status.innerHTML = '<span class="bad">Inserisci un codice.</span>'; return; }
+  status.textContent = 'Ricerca in corso…';
+
+  fetch(API_BASE + '/api/ticket/' + encodeURIComponent(code))
+    .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, data: d }; }); })
+    .then(function(res){
+      if(!res.ok || !res.data.ok){
+        status.innerHTML = '<span class="bad">Codice non trovato.</span>';
+        return;
+      }
+      status.textContent = '';
+      var t = res.data;
+      var info = '<div class="info"><b>' + (t.eventTitle||'') + '</b><br>' + (t.tierLabel||'') + (t.buyerName ? '<br>' + t.buyerName : '') + '</div>';
+      if(t.paid){
+        result.innerHTML = '<div class="result">' + info + '<div class="code">Già pagato</div></div>';
+        return;
+      }
+      result.innerHTML = '<div class="result">' + info
+        + '<label>Pagamento ricevuto</label>'
+        + '<div class="pay">' + PAYMENTS.map(payOptHTML).join('') + '</div>'
+        + '<button id="confirm-btn" disabled>Conferma pagamento</button>'
+        + '</div>';
+      bindPayOptsConfirm(code);
+    })
+    .catch(function(){ status.innerHTML = '<span class="bad">Errore di rete, riprova.</span>'; });
+}
+
+function bindPayOptsConfirm(code){
+  document.querySelectorAll('.opt[data-pay]').forEach(function(el){
+    el.onclick = function(){
+      document.querySelectorAll('.opt[data-pay]').forEach(function(o){ o.classList.remove('selected'); });
+      el.classList.add('selected');
+      el.querySelector('input').checked = true;
+      selectedPayment = el.dataset.pay;
+      document.getElementById('confirm-btn').disabled = false;
+    };
+  });
+  document.getElementById('confirm-btn').onclick = function(){ confirmPayment(code); };
+}
+
+function confirmPayment(code){
+  var status = document.getElementById('status');
+  status.textContent = 'Conferma in corso…';
+  document.getElementById('confirm-btn').disabled = true;
+
+  fetch(API_BASE + '/api/ticket/' + encodeURIComponent(code) + '/confirm-payment', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+    body: JSON.stringify({ paymentMethod: selectedPayment })
+  })
+    .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, data: d }; }); })
+    .then(function(res){
+      if(!res.ok || !res.data.ok){
+        status.innerHTML = '<span class="bad">Errore nella conferma, riprova.</span>';
+        document.getElementById('confirm-btn').disabled = false;
+        return;
+      }
+      document.getElementById('form-wrap').innerHTML = '<div class="result"><div class="code">✓ Pagamento confermato</div><button id="new-btn">Nuova ricerca</button></div>';
+      document.getElementById('new-btn').onclick = renderTab;
+    })
+    .catch(function(){
+      status.innerHTML = '<span class="bad">Errore di rete, riprova.</span>';
+      document.getElementById('confirm-btn').disabled = false;
     });
 }
 </script>

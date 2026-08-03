@@ -63,7 +63,10 @@ function checkCode(code){
       }
       var t = res.data;
       var info = '<div class="code">' + code + '</div><div class="info"><b>' + (t.eventTitle||'') + '</b><br>' + (t.tierLabel||'') + (t.buyerName ? '<br>' + t.buyerName : '') + '</div>';
-      if(t.used){
+      if(t.paid === false){
+        render(info + '<div class="status bad">✗ NON PAGATO<br><span style="font-size:12px;font-weight:400">Prenotazione da confermare al botteghino</span></div><button id="retry-btn">Verifica un altro codice</button>');
+        document.getElementById('retry-btn').onclick = showManualForm;
+      } else if(t.used){
         render(info + '<div class="status bad">✗ GIÀ USATO<br><span style="font-size:12px;font-weight:400">' + new Date(t.usedAt).toLocaleString('it-IT') + '</span></div><button id="retry-btn">Verifica un altro codice</button>');
         document.getElementById('retry-btn').onclick = showManualForm;
       } else {
