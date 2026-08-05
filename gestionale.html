@@ -542,7 +542,6 @@ function loadList(){
       if(!res.ok || !res.data.ok){ status.innerHTML = '<span class="bad">' + (res.data && res.data.error === 'unauthorized' ? 'Chiave sbagliata.' : 'Errore.') + '</span>'; return; }
       var excludedEmails = ['fedeneri.fm'];
       allTickets = (res.data.tickets || []).filter(function(t){
-        if(t.eventId !== selectedEvent.id) return false;
         return !excludedEmails.some(function(ex){ return (t.buyerEmail||'').toLowerCase().indexOf(ex) !== -1; });
       });
       status.textContent = '';
