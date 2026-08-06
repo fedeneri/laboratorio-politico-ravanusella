@@ -27,8 +27,11 @@ collections:
       - label: "Rubrica"
         name: mcat
         widget: select
-        options: ["talk", "analisi", "inchiesta", "contributo"]
-        hint: "Determina in quale filtro della home compare"
+        options:
+          - { label: "Talk", value: "talk" }
+          - { label: "Inchiesta", value: "inchiesta" }
+          - { label: "Contributo", value: "contributo" }
+        hint: "Determina sotto quale filtro della sezione Media Lab compare (Talk / Inchieste / Contributi)"
       - { label: "Etichetta mostrata", name: tipo, widget: string, hint: "Es. Talk, Podcast, Analisi, Inchiesta..." }
       - { label: "Data pubblicazione", name: date, widget: datetime, format: "YYYY-MM-DD", date_format: "YYYY-MM-DD", time_format: false }
       - { label: "Etichetta data (facoltativa)", name: data, widget: string, required: false, hint: "Es. \"Luglio 2026\". Se vuota il sito la genera dalla data sopra" }
