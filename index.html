@@ -1789,6 +1789,16 @@ function scaroEventDateObj(e){
   if(monIdx < 0 || !e.day || !e.yr) return null;
   return new Date(parseInt(e.yr,10), monIdx, parseInt(e.day,10), 23, 59, 59);
 }
+function scaroAutoDur(n){
+  // Se non c'è un video o un audio (quelli hanno una durata reale che va
+  // scritta a mano), calcola il tempo di lettura dal testo: media italiana
+  // di circa 200 parole al minuto.
+  if (n.youtube || n.spotify) return '';
+  var testo = (n.body || n.desc || '').toString();
+  var parole = testo.trim().split(/\s+/).filter(Boolean).length;
+  var minuti = Math.max(1, Math.round(parole / 200));
+  return minuti + ' min';
+}
 function scaroApplyContent(){
   (SCARO_EXTRA.news || []).slice().reverse().forEach(function(n){
     var id = n.id || scaroSafeId(n.title || n.testo);
@@ -1799,7 +1809,7 @@ function scaroApplyContent(){
       tipo: n.tipo || n.type || 'News',
       date: n.date || '',
       data: n.data || n.dateLabel || scaroFmtDate(n.date),
-      dur: n.dur || n.readingTime || '3 min',
+      dur: n.dur || n.readingTime || scaroAutoDur(n),
       testo: n.testo || n.title,
       desc: n.desc || n.description || '',
       autore: n.autore || n.author || 'Scaro',

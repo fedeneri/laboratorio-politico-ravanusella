@@ -35,7 +35,7 @@ collections:
       - { label: "Etichetta mostrata", name: tipo, widget: string, hint: "Es. Talk, Podcast, Analisi, Inchiesta..." }
       - { label: "Data pubblicazione", name: date, widget: datetime, format: "YYYY-MM-DD", date_format: "YYYY-MM-DD", time_format: false }
       - { label: "Etichetta data (facoltativa)", name: data, widget: string, required: false, hint: "Es. \"Luglio 2026\". Se vuota il sito la genera dalla data sopra" }
-      - { label: "Durata o tempo di lettura", name: dur, widget: string, hint: "Es. \"1h 20min\", \"8 min\"" }
+      - { label: "Durata (solo per video/podcast)", name: dur, widget: string, required: false, hint: "Es. \"1h 20min\". Lascia vuoto per articoli di testo: il tempo di lettura viene calcolato da solo in base alla lunghezza del testo" }
       - { label: "Video YouTube — solo l'ID", name: youtube, widget: string, required: false, hint: "Dall'URL youtube.com/watch?v=QUESTO-PEZZO" }
       - { label: "Episodio Spotify — solo l'ID", name: spotify, widget: string, required: false, hint: "Dall'URL open.spotify.com/episode/QUESTO-PEZZO" }
       - { label: "Immagine di copertina", name: img, widget: image, required: false, hint: "Solo se non c'e' un video: altrimenti si usa la copertina di YouTube" }
