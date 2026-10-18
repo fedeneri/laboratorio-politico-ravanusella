@@ -84,7 +84,28 @@ tr.det td{background:#faf4ee;font-size:13px;color:#3c5a9e}
 .bil summary{cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.06em}
 .empty{font-size:14px;color:var(--muted);padding:12px 0}
 .view{display:none}.view.active{display:block}
+.ft td input,.ft td select{padding:7px 8px;font-size:14px;border-width:1px}
+.ft td{padding:5px 4px}
+.ft td.del button{background:none;border:none;color:var(--red);font-size:18px;cursor:pointer}
+.cat{border:2px solid var(--blue);margin-bottom:14px}
+.cat h3{display:flex;justify-content:space-between;gap:10px;background:var(--blue);color:var(--white);padding:9px 12px;font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.05em;text-transform:uppercase}
+.deb{padding:11px 12px;border-bottom:1px solid var(--tan)}
+.deb:last-child{border-bottom:none}
+.deb .top2{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.deb .nome{font-weight:600}
+.bar{height:8px;background:var(--tan);margin:8px 0 6px}
+.bar span{display:block;height:100%;background:var(--green)}
+.deb .sm{font-size:12px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.deb .sm button{background:none;border:none;color:var(--blue);text-decoration:underline;cursor:pointer;font-size:12px;font-family:inherit;padding:0}
+.payrow{display:none;gap:6px;margin-top:8px}
+.payrow input{padding:7px 8px;font-size:14px}
+.payrow.open{display:flex}
 @media (max-width:600px){
+  .tabs{display:grid;grid-template-columns:repeat(3,1fr)}
+  .tabs button + button{border-left:none}
+  .tabs button{border-right:2px solid var(--blue);border-bottom:2px solid var(--blue)}
+  .tabs button:nth-child(3n){border-right:none}
+  .tabs button:nth-child(n+4){border-bottom:none}
   .row{grid-template-columns:1fr 110px 44px;gap:6px;padding-bottom:10px;border-bottom:1px solid var(--tan)}
   .row input[type=text]:not([inputmode]){grid-column:1 / -1;grid-row:2}
   .tabs button{min-width:0;padding:12px 4px;font-size:10px;letter-spacing:.02em}
@@ -109,6 +130,8 @@ tr.det td{background:#faf4ee;font-size:13px;color:#3c5a9e}
     <button class="active" data-v="chiusura">Chiusura</button>
     <button data-v="andamento">Andamento</button>
     <button data-v="storico">Storico</button>
+    <button data-v="fissi">Costi fissi</button>
+    <button data-v="debiti">Debiti</button>
     <button data-v="bilanci">Bilanci</button>
   </div>
 
@@ -201,6 +224,51 @@ tr.det td{background:#faf4ee;font-size:13px;color:#3c5a9e}
     </div>
   </div>
 
+  <!-- COSTI FISSI -->
+  <div class="view" id="v-fissi">
+    <div class="tiles" id="f-tiles"></div>
+    <div class="card">
+      <h2>Costi fissi mensili</h2>
+      <p class="sub">Affitti, stipendi, utenze, rate: quello che esce ogni mese. Nell'Andamento li confronto con il saldo della cassa.</p>
+      <div class="tablewrap"><table class="ft" id="f-table"></table></div>
+      <div class="addbar"><button class="btn alt small" id="f-add">+ Voce</button><button class="btn alt small" id="f-import">Importa da Excel</button></div>
+      <input type="file" id="f-file" accept=".xlsx,.xls,.csv" style="display:none">
+      <button class="btn full" id="f-save">Salva costi fissi</button>
+      <div class="msg" id="f-msg"></div>
+    </div>
+    <div class="card">
+      <h2>Come si dividono</h2>
+      <div class="chartbox" style="height:280px"><canvas id="ch-fissi"></canvas></div>
+    </div>
+  </div>
+
+  <!-- DEBITI -->
+  <div class="view" id="v-debiti">
+    <div class="tiles" id="d-tiles"></div>
+    <div class="card">
+      <h2>Debito residuo nel tempo</h2>
+      <p class="sub">Scende a ogni pagamento registrato.</p>
+      <div class="chartbox" style="height:260px"><canvas id="ch-debiti"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Registro debiti</h2>
+      <p class="sub">Per ogni debito segna i pagamenti fatti: il residuo si aggiorna da solo.</p>
+      <div id="d-list"></div>
+      <div class="addbar" style="margin-top:14px"><button class="btn alt small" id="d-add">+ Debito</button><button class="btn alt small" id="d-import">Importa da Excel</button></div>
+      <input type="file" id="d-file" accept=".xlsx,.xls,.csv" style="display:none">
+      <div id="d-new" style="display:none;margin-top:14px">
+        <div class="grid2">
+          <div><label for="dn-cat">Categoria</label><input type="text" id="dn-cat" list="d-cats" placeholder="Es. Debiti con fornitori"></div>
+          <div><label for="dn-cred">Creditore</label><input type="text" id="dn-cred"></div>
+          <div><label for="dn-imp">Importo €</label><input type="text" inputmode="decimal" id="dn-imp"></div>
+        </div>
+        <datalist id="d-cats"></datalist>
+        <button class="btn full" id="dn-save">Aggiungi debito</button>
+      </div>
+      <div class="msg" id="d-msg"></div>
+    </div>
+  </div>
+
   <!-- BILANCI -->
   <div class="view" id="v-bilanci">
     <div class="card">
@@ -254,7 +322,7 @@ try { session = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch(e){}
 if (!session || !session.name || !session.pin) location.href = 'pannello.html';
 document.getElementById('who').textContent = session ? session.name : '';
 
-let DB = { giorni: {}, bilanci: [] };
+let DB = { giorni: {}, bilanci: [], fissi: [], debiti: [] };
 let charts = {};
 let pendingBilancio = null;
 
@@ -300,6 +368,8 @@ document.querySelectorAll('.tabs button').forEach(function(b){
     if (b.dataset.v === 'andamento') renderAndamento();
     if (b.dataset.v === 'storico') renderStorico();
     if (b.dataset.v === 'bilanci') renderBilanci();
+    if (b.dataset.v === 'fissi') renderFissi();
+    if (b.dataset.v === 'debiti') renderDebiti();
   };
 });
 
@@ -309,6 +379,8 @@ async function load(){
     const d = await api('/api/cassa/data');
     DB.giorni = d.giorni || {};
     DB.bilanci = d.bilanci || [];
+    DB.fissi = d.fissi || [];
+    DB.debiti = d.debiti || [];
   } catch(e){
     if (e.message !== 'unauthorized') msg('c-msg', 'err', 'Non riesco a caricare i dati: ' + e.message);
   }
@@ -477,6 +549,11 @@ function renderAndamento(){
     '<div class="tile"><div class="k">Entrate</div><div class="v pos">' + eur0.format(cur.e) + '</div>' + delta(cur.e, prev.e) + '</div>' +
     '<div class="tile"><div class="k">Uscite</div><div class="v neg">' + eur0.format(cur.u) + '</div>' + delta(cur.u, prev.u) + '</div>' +
     '<div class="tile"><div class="k">Saldo</div><div class="v ' + (cur.s >= 0 ? 'pos' : 'neg') + '">' + eur0.format(cur.s) + '</div>' + delta(cur.s, prev.s) + '</div>' +
+    (fissiMese() ? (function(){
+      const days = Math.round((parseD(r.to) - parseD(r.from)) / 86400000) + 1;
+      const quota = fissiMese() * 12 / 365 * days; const marg = cur.s - quota;
+      return '<div class="tile"><div class="k">Saldo meno costi fissi</div><div class="v ' + (marg >= 0 ? 'pos' : 'neg') + '">' + eur0.format(marg) + '</div><div class="d">quota costi fissi del periodo ' + eur0.format(quota) + '</div></div>';
+    })() : '') +
     '<div class="tile"><div class="k">Media per giorno registrato</div><div class="v">' + (cur.giorni ? eur0.format(cur.s / cur.giorni) : 'n.d.') + '</div><div class="d">' + cur.giorni + ' giorni con movimenti</div></div>';
 
   const b = buckets(r.from, r.to, g);
@@ -487,6 +564,7 @@ function renderAndamento(){
       datasets: [
         { type:'bar', label:'Entrate', data: b.map(function(x){ return x.e; }), backgroundColor: C.green, order: 2 },
         { type:'bar', label:'Uscite', data: b.map(function(x){ return -x.u; }), backgroundColor: C.red, order: 2 },
+        ...(fissiMese() ? [{ type:'line', label:'Costi fissi da coprire', data: b.map(function(x){ return fissiMese() * 12 / 365 * bucketDays(x.k, g); }), borderColor: C.muted, borderDash:[6,4], borderWidth:2, pointRadius:0, order: 0 }] : []),
         { type:'line', label:'Saldo accumulato', data: saldo, borderColor: C.blue, backgroundColor: C.blue, borderWidth: 3, pointRadius: b.length > 40 ? 0 : 3, tension: .25, order: 1 }
       ]
     },
@@ -511,6 +589,14 @@ function renderAndamento(){
     options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, scales:{ x:{ ticks: moneyTick, grid:{ color:'#eadfd3' } }, y:{ grid:{ display:false } } },
       plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label: function(c){ return fmt(c.parsed.x); } } } } }
   });
+}
+
+function fissiMese(){ return (DB.fissi || []).reduce(function(a, x){ return a + (x.importo || 0); }, 0); }
+function bucketDays(k, g){
+  if (g === 'giorno') return 1;
+  if (g === 'settimana') return 7;
+  if (g === 'mese'){ const y = +k.slice(0,4), m = +k.slice(5,7); return new Date(y, m, 0).getDate(); }
+  return 365;
 }
 
 function renderGenerale(){
@@ -818,6 +904,191 @@ function renderBilanci(){
     };
   });
 }
+
+/* ---------- COSTI FISSI ---------- */
+const CATS_F = ['Affitti','Stipendi','Utenze','Rate','Altro'];
+function catFisso(v){
+  v = v.toLowerCase();
+  if (/affitt|locazion/.test(v)) return 'Affitti';
+  if (/stipend|salari|personale|contribut/.test(v)) return 'Stipendi';
+  if (/utenz|luce|gas|acqua|telefon|internet|energia/.test(v)) return 'Utenze';
+  if (/rata|mutuo|tosap|finanziam|prestit/.test(v)) return 'Rate';
+  return 'Altro';
+}
+let fissiEdit = [];
+function renderFissi(){
+  fissiEdit = (DB.fissi || []).map(function(x){ return Object.assign({}, x); });
+  drawFissi();
+}
+function drawFissi(){
+  const t = document.getElementById('f-table');
+  t.innerHTML = '<tr><th>Voce</th><th>Categoria</th><th class="n">€ al mese</th><th></th></tr>' + fissiEdit.map(function(x, i){
+    return '<tr><td><input data-i="' + i + '" data-f="voce" value="' + esc(x.voce) + '"></td>' +
+      '<td><select data-i="' + i + '" data-f="categoria">' + CATS_F.map(function(c){ return '<option' + (c === x.categoria ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></td>' +
+      '<td><input data-i="' + i + '" data-f="importo" inputmode="decimal" style="text-align:right" value="' + numIn(x.importo) + '"></td>' +
+      '<td class="del"><button data-del="' + i + '">×</button></td></tr>';
+  }).join('');
+  t.querySelectorAll('[data-f]').forEach(function(el){
+    el.oninput = el.onchange = function(){ const x = fissiEdit[+el.dataset.i]; x[el.dataset.f] = el.dataset.f === 'importo' ? num(el.value) : el.value; tilesFissi(); };
+  });
+  t.querySelectorAll('[data-del]').forEach(function(b){ b.onclick = function(){ fissiEdit.splice(+b.dataset.del, 1); drawFissi(); }; });
+  tilesFissi();
+}
+function tilesFissi(){
+  const tot = fissiEdit.reduce(function(a, x){ return a + (x.importo || 0); }, 0);
+  const per = {}; fissiEdit.forEach(function(x){ per[x.categoria] = (per[x.categoria] || 0) + (x.importo || 0); });
+  document.getElementById('f-tiles').innerHTML =
+    '<div class="tile"><div class="k">Al mese</div><div class="v neg">' + eur0.format(tot) + '</div></div>' +
+    '<div class="tile"><div class="k">Al giorno</div><div class="v">' + eur0.format(tot * 12 / 365) + '</div><div class="d">da incassare in media per coprirli</div></div>' +
+    '<div class="tile"><div class="k">All\'anno</div><div class="v">' + eur0.format(tot * 12) + '</div></div>';
+  const cats = Object.keys(per).filter(function(k){ return per[k] > 0; });
+  mkChart('ch-fissi', { type:'doughnut',
+    data:{ labels: cats, datasets:[{ data: cats.map(function(k){ return per[k]; }), backgroundColor: [C.blue, C.red, C.green, '#c98a2b', C.muted, '#7a4e9a'], borderColor:'#fff', borderWidth:2 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'right' }, tooltip:{ callbacks:{ label: function(c){ return c.label + ': ' + fmt(c.parsed) + ' (' + Math.round(c.parsed / tot * 100) + '%)'; } } } } } });
+}
+document.getElementById('f-add').onclick = function(){ fissiEdit.push({ voce:'', categoria:'Altro', importo:null }); drawFissi(); };
+document.getElementById('f-import').onclick = function(){ document.getElementById('f-file').click(); };
+document.getElementById('f-file').onchange = async function(){
+  const f = this.files[0]; this.value = ''; if (!f) return;
+  try {
+    const rows = await readRowsXlsx(f);
+    const nuovi = []; let fine = false;
+    rows.forEach(function(r){
+      if (fine) return;
+      const label = r.map(function(c){ return typeof c === 'string' ? c.trim() : ''; }).filter(function(t){ return t && cellNum(t) === null; })[0];
+      if (label && /total/i.test(label) && nuovi.length){ fine = true; return; }
+      if (!label || /total|voce di costo|debit|creditore/i.test(label)) return;
+      const nums = r.map(cellNum).filter(function(n){ return n !== null; });
+      if (!nums.length) return;
+      nuovi.push({ voce: label, categoria: catFisso(label), importo: nums[nums.length - 1], netto: nums.length > 1 ? nums[0] : null });
+    });
+    if (!nuovi.length){ msg('f-msg','err','Non ho trovato voci con importi nel file.'); return; }
+    if (fissiEdit.length && !confirm('Sostituire le ' + fissiEdit.length + ' voci attuali con le ' + nuovi.length + ' del file?')) return;
+    fissiEdit = nuovi; drawFissi();
+    msg('f-msg','info', nuovi.length + ' voci lette dal file. Controlla e premi Salva.');
+  } catch(e){ msg('f-msg','err','Non riesco a leggere il file: ' + e.message); }
+};
+document.getElementById('f-save').onclick = async function(){
+  const btn = this; btn.disabled = true;
+  try {
+    const d = await api('/api/cassa/fissi/salva', { fissi: fissiEdit.filter(function(x){ return x.voce && x.voce.trim(); }) });
+    DB.fissi = d.fissi; renderFissi(); msg('f-msg','ok','Salvato.');
+  } catch(e){ if (e.message !== 'unauthorized') msg('f-msg','err','Non salvato: ' + e.message); }
+  finally { btn.disabled = false; }
+};
+
+/* ---------- DEBITI ---------- */
+function pagato(x){ return (x.pagamenti || []).reduce(function(a, p){ return a + p.importo; }, 0); }
+function residuo(x){ return Math.max(0, Math.round((x.importo - pagato(x)) * 100) / 100); }
+async function saveDebiti(nuova, okText){
+  const d = await api('/api/cassa/debiti/salva', { debiti: nuova });
+  DB.debiti = d.debiti; renderDebiti(); if (okText) msg('d-msg','ok', okText);
+}
+function renderDebiti(){
+  const deb = DB.debiti || [];
+  const tot = deb.reduce(function(a, x){ return a + x.importo; }, 0);
+  const pag = deb.reduce(function(a, x){ return a + pagato(x); }, 0);
+  document.getElementById('d-tiles').innerHTML =
+    '<div class="tile"><div class="k">Debito residuo</div><div class="v neg">' + eur0.format(tot - pag) + '</div></div>' +
+    '<div class="tile"><div class="k">Debito iniziale</div><div class="v">' + eur0.format(tot) + '</div></div>' +
+    '<div class="tile"><div class="k">Già pagato</div><div class="v pos">' + eur0.format(pag) + '</div><div class="d">' + (tot ? Math.round(pag / tot * 100) : 0) + '% del totale</div></div>';
+  const cats = {};
+  deb.forEach(function(x){ (cats[x.categoria] = cats[x.categoria] || []).push(x); });
+  document.getElementById('d-cats').innerHTML = Object.keys(cats).map(function(c){ return '<option value="' + esc(c) + '">'; }).join('');
+  const el = document.getElementById('d-list');
+  if (!deb.length){ el.innerHTML = '<div class="empty">Nessun debito registrato. Aggiungilo a mano o importa il foglio Excel.</div>'; }
+  else el.innerHTML = Object.keys(cats).sort(function(a, b){
+      return cats[b].reduce(function(s, x){ return s + residuo(x); }, 0) - cats[a].reduce(function(s, x){ return s + residuo(x); }, 0);
+    }).map(function(c){
+    const res = cats[c].reduce(function(a, x){ return a + residuo(x); }, 0);
+    return '<div class="cat"><h3><span>' + esc(c) + '</span><span>' + fmt(res) + '</span></h3>' + cats[c].map(function(x){
+      const p = pagato(x), perc = x.importo ? Math.min(100, p / x.importo * 100) : 0;
+      return '<div class="deb"><div class="top2"><span class="nome">' + esc(x.creditore) + '</span><strong class="' + (residuo(x) ? 'neg' : 'pos') + '">' + (residuo(x) ? fmt(residuo(x)) : 'saldato') + '</strong></div>' +
+        '<div class="bar"><span style="width:' + perc.toFixed(1) + '%"></span></div>' +
+        '<div class="sm"><span>iniziale ' + fmt(x.importo) + '</span><span>pagato ' + fmt(p) + '</span>' +
+        '<button data-pay="' + x.id + '">Registra pagamento</button><button data-hist="' + x.id + '">Pagamenti (' + (x.pagamenti || []).length + ')</button><button data-deld="' + x.id + '" style="color:var(--red)">elimina</button></div>' +
+        '<div class="payrow" id="pay-' + x.id + '"><input type="date" value="' + today() + '"><input type="text" inputmode="decimal" placeholder="Importo €"><button class="btn small" data-paysave="' + x.id + '">OK</button></div>' +
+        '<div id="hist-' + x.id + '" style="display:none;margin-top:6px;font-size:13px">' + ((x.pagamenti || []).slice().sort(function(a, b){ return a.data < b.data ? 1 : -1; }).map(function(pp){
+          return '<div class="li"><span>' + pp.data + ' · ' + fmt(pp.importo) + ' <span class="meta">' + esc(pp.autore) + '</span></span><button data-delp="' + x.id + '|' + pp.id + '">elimina</button></div>';
+        }).join('') || '<div class="empty">Nessun pagamento.</div>') + '</div></div>';
+    }).join('') + '</div>';
+  }).join('');
+  el.querySelectorAll('[data-pay]').forEach(function(b){ b.onclick = function(){ document.getElementById('pay-' + b.dataset.pay).classList.toggle('open'); }; });
+  el.querySelectorAll('[data-hist]').forEach(function(b){ b.onclick = function(){ const h = document.getElementById('hist-' + b.dataset.hist); h.style.display = h.style.display === 'none' ? '' : 'none'; }; });
+  el.querySelectorAll('[data-paysave]').forEach(function(b){
+    b.onclick = async function(){
+      const row = document.getElementById('pay-' + b.dataset.paysave); const ins = row.querySelectorAll('input');
+      const imp = num(ins[1].value); if (!imp || imp <= 0){ alert('Scrivi l\'importo.'); return; }
+      const nuova = JSON.parse(JSON.stringify(DB.debiti));
+      const x = nuova.find(function(y){ return y.id === b.dataset.paysave; });
+      x.pagamenti = (x.pagamenti || []).concat([{ data: ins[0].value || today(), importo: imp, autore: session.name }]);
+      b.disabled = true;
+      try { await saveDebiti(nuova, 'Pagamento registrato.'); } catch(e){ if (e.message !== 'unauthorized') alert('Non salvato: ' + e.message); b.disabled = false; }
+    };
+  });
+  el.querySelectorAll('[data-delp]').forEach(function(b){
+    b.onclick = async function(){
+      if (!confirm('Eliminare questo pagamento?')) return;
+      const ids = b.dataset.delp.split('|'); const nuova = JSON.parse(JSON.stringify(DB.debiti));
+      const x = nuova.find(function(y){ return y.id === ids[0]; }); x.pagamenti = x.pagamenti.filter(function(p){ return p.id !== ids[1]; });
+      try { await saveDebiti(nuova); } catch(e){ if (e.message !== 'unauthorized') alert('Non salvato: ' + e.message); }
+    };
+  });
+  el.querySelectorAll('[data-deld]').forEach(function(b){
+    b.onclick = async function(){
+      if (!confirm('Eliminare questo debito dal registro?')) return;
+      try { await saveDebiti(DB.debiti.filter(function(y){ return y.id !== b.dataset.deld; })); } catch(e){ if (e.message !== 'unauthorized') alert('Non salvato: ' + e.message); }
+    };
+  });
+  // residuo nel tempo
+  const pays = []; deb.forEach(function(x){ (x.pagamenti || []).forEach(function(p){ pays.push(p); }); });
+  pays.sort(function(a, b){ return a.data < b.data ? -1 : 1; });
+  const pts = [{ x: 'Inizio', y: tot }]; let r = tot;
+  const byDay = {}; pays.forEach(function(p){ byDay[p.data] = (byDay[p.data] || 0) + p.importo; });
+  Object.keys(byDay).sort().forEach(function(d){ r -= byDay[d]; pts.push({ x: labelDay(d) + ' ' + d.slice(2,4), y: Math.round(r * 100) / 100 }); });
+  if (pts.length === 1) pts.push({ x: 'Oggi', y: tot });
+  mkChart('ch-debiti', { type:'line',
+    data:{ labels: pts.map(function(p){ return p.x; }), datasets:[{ label:'Debito residuo', data: pts.map(function(p){ return p.y; }), borderColor: C.red, backgroundColor: 'rgba(179,38,30,.12)', fill:true, stepped:true, borderWidth:3, pointRadius:3 }] },
+    options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true, ticks: moneyTick, grid:{ color:'#eadfd3' } }, x:{ grid:{ display:false } } },
+      plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label: function(c){ return fmt(c.parsed.y); } } } } } });
+}
+document.getElementById('d-add').onclick = function(){ const n = document.getElementById('d-new'); n.style.display = n.style.display === 'none' ? '' : 'none'; };
+document.getElementById('dn-save').onclick = async function(){
+  const cat = document.getElementById('dn-cat').value.trim() || 'Altro';
+  const cred = document.getElementById('dn-cred').value.trim(); const imp = num(document.getElementById('dn-imp').value);
+  if (!cred || !imp){ msg('d-msg','err','Servono creditore e importo.'); return; }
+  try {
+    await saveDebiti(DB.debiti.concat([{ categoria: cat, creditore: cred, importo: imp, pagamenti: [] }]), 'Debito aggiunto.');
+    ['dn-cat','dn-cred','dn-imp'].forEach(function(id){ document.getElementById(id).value = ''; });
+    document.getElementById('d-new').style.display = 'none';
+  } catch(e){ if (e.message !== 'unauthorized') msg('d-msg','err','Non salvato: ' + e.message); }
+};
+document.getElementById('d-import').onclick = function(){ document.getElementById('d-file').click(); };
+document.getElementById('d-file').onchange = async function(){
+  const f = this.files[0]; this.value = ''; if (!f) return;
+  try {
+    const rows = await readRowsXlsx(f);
+    // per ogni intestazione "Creditore | Importo", la categoria e' il titolo "Debiti ..." sopra la stessa colonna
+    const nuovi = [];
+    rows.forEach(function(r, ri){
+      r.forEach(function(c, ci){
+        if (String(c).trim().toLowerCase() !== 'creditore') return;
+        let cat = 'Altro';
+        for (let k = ri - 1; k >= 0; k--){ const t = String(rows[k][ci] || '').trim(); if (t && /debit/i.test(t)){ cat = t; break; } }
+        for (let k = ri + 1; k < rows.length; k++){
+          const nome = String(rows[k][ci] || '').trim(); const imp = cellNum(rows[k][ci + 1]);
+          if (!nome && imp === null) continue;
+          if (/creditore|subtotal|total/i.test(nome)) break;
+          if (nome && imp) nuovi.push({ categoria: cat, creditore: nome, importo: imp, pagamenti: [] });
+        }
+      });
+    });
+    if (!nuovi.length){ msg('d-msg','err','Non ho trovato colonne Creditore e Importo nel file.'); return; }
+    const tot = nuovi.reduce(function(a, x){ return a + x.importo; }, 0);
+    if (!confirm('Trovati ' + nuovi.length + ' debiti per ' + fmt(tot) + '.' + (DB.debiti.length ? ' Sostituiscono i ' + DB.debiti.length + ' attuali, con i loro pagamenti.' : '') + ' Importo?')) return;
+    await saveDebiti(nuovi, nuovi.length + ' debiti importati.');
+  } catch(e){ if (e.message !== 'unauthorized') msg('d-msg','err','Non riesco a importare: ' + e.message); }
+};
 
 resetRows();
 if (session) load();

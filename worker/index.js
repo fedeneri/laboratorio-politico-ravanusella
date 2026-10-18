@@ -912,7 +912,9 @@ async function handleCassaData(request, env, origin) {
     Object.assign(giorni, data.giorni || {});
   }
   const bilanci = await getJSON(env, CASSA_BILANCI_KEY, []);
-  return json({ ok: true, giorni: giorni, bilanci: bilanci }, 200, origin);
+  const fissi = await getJSON(env, 'cassa:fissi', []);
+  const debiti = await getJSON(env, 'cassa:debiti', []);
+  return json({ ok: true, giorni: giorni, bilanci: bilanci, fissi: fissi, debiti: debiti }, 200, origin);
 }
 
 function validDate(d) {
@@ -1074,6 +1076,42 @@ async function handleBilancioSalva(request, env, origin) {
   return json({ ok: true, bilancio: pulito }, 200, origin);
 }
 
+// Costi fissi mensili e registro debiti: la pagina manda la lista intera.
+async function handleFissiSalva(request, env, origin) {
+  const r = await cassaBody(request, env, origin);
+  if (r.error) return r.error;
+  const lista = (Array.isArray(r.body.fissi) ? r.body.fissi : []).slice(0, 200).map(function (x) {
+    return {
+      id: x.id || cassaId(),
+      voce: String(x.voce || '').slice(0, 120),
+      categoria: String(x.categoria || 'Altro').slice(0, 40),
+      importo: numOrNull(x.importo) || 0,
+      netto: numOrNull(x.netto)
+    };
+  }).filter(function (x) { return x.voce; });
+  await env.TICKETS.put('cassa:fissi', JSON.stringify(lista));
+  return json({ ok: true, fissi: lista }, 200, origin);
+}
+
+async function handleDebitiSalva(request, env, origin) {
+  const r = await cassaBody(request, env, origin);
+  if (r.error) return r.error;
+  const lista = (Array.isArray(r.body.debiti) ? r.body.debiti : []).slice(0, 500).map(function (x) {
+    return {
+      id: x.id || cassaId(),
+      categoria: String(x.categoria || 'Altro').slice(0, 60),
+      creditore: String(x.creditore || '').slice(0, 120),
+      importo: numOrNull(x.importo) || 0,
+      note: String(x.note || '').slice(0, 300),
+      pagamenti: (Array.isArray(x.pagamenti) ? x.pagamenti : []).slice(0, 500).map(function (p) {
+        return { id: p.id || cassaId(), data: validDate(p.data) ? p.data : new Date().toISOString().slice(0, 10), importo: numOrNull(p.importo) || 0, autore: String(p.autore || r.body.name).slice(0, 40) };
+      }).filter(function (p) { return p.importo > 0; })
+    };
+  }).filter(function (x) { return x.creditore; });
+  await env.TICKETS.put('cassa:debiti', JSON.stringify(lista));
+  return json({ ok: true, debiti: lista }, 200, origin);
+}
+
 async function handleBilancioDelete(request, env, origin) {
   const r = await cassaBody(request, env, origin);
   if (r.error) return r.error;
@@ -1098,6 +1136,8 @@ export default {
       if (url.pathname === '/api/cassa/bilancio/analizza') return handleBilancioAnalizza(request, env, origin);
       if (url.pathname === '/api/cassa/bilancio/salva') return handleBilancioSalva(request, env, origin);
       if (url.pathname === '/api/cassa/bilancio/elimina') return handleBilancioDelete(request, env, origin);
+      if (url.pathname === '/api/cassa/fissi/salva') return handleFissiSalva(request, env, origin);
+      if (url.pathname === '/api/cassa/debiti/salva') return handleDebitiSalva(request, env, origin);
     }
 
     if (url.pathname === '/api/cms/publish' && request.method === 'POST') {
