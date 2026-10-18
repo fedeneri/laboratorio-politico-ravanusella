@@ -205,7 +205,7 @@ tr.det td{background:#faf4ee;font-size:13px;color:#3c5a9e}
   <div class="view" id="v-bilanci">
     <div class="card">
       <h2>Carica un bilancio</h2>
-      <p class="sub">PDF del commercialista, Excel o CSV, foto o scansioni, oppure testo scritto. L'AI legge i numeri, tu li controlli prima di salvare.</p>
+      <p class="sub">Excel e CSV vengono letti direttamente dalla pagina. PDF, foto e testo libero passano dall'AI. In ogni caso controlli i numeri prima di salvare.</p>
       <div class="drop" id="b-drop">
         <strong>Scegli i file</strong>
         PDF, Excel, CSV o foto (fino a 5)
@@ -214,7 +214,8 @@ tr.det td{background:#faf4ee;font-size:13px;color:#3c5a9e}
       <div class="files" id="b-files"></div>
       <label for="b-text">Oppure scrivi o incolla il testo</label>
       <textarea id="b-text" placeholder="Es. Ricavi 2025: 84.000 euro. Costi: personale 31.000, merci 22.000…"></textarea>
-      <button class="btn full" id="b-analizza">Analizza con AI</button>
+      <button class="btn full" id="b-analizza">Leggi i numeri</button>
+      <button class="btn alt full" id="b-mano" style="margin-top:10px">Inserisci a mano</button>
       <div class="msg" id="b-msg"></div>
     </div>
 
@@ -619,10 +620,117 @@ function readSheet(file){
   });
 }
 
+/* lettura locale di Excel/CSV, senza AI */
+const MESI_RE = [/^gen/,/^feb/,/^mar/,/^apr/,/^mag/,/^giu/,/^lug/,/^ago/,/^set/,/^ott/,/^nov/,/^dic/];
+function cellNum(c){
+  if (typeof c === 'number') return c;
+  if (typeof c !== 'string') return null;
+  const t = c.trim(); if (!/\d/.test(t) || /[a-z]/i.test(t.replace(/€|eur/gi,''))) return null;
+  const n = num(t.replace(/[()]/g, '')); if (n === null) return null;
+  return /^\(.*\)$/.test(t) ? -n : n;
+}
+function readRowsXlsx(file){
+  return new Promise(function(res, rej){
+    const r = new FileReader();
+    r.onload = function(){
+      try {
+        const wb = XLSX.read(new Uint8Array(r.result), { type:'array' });
+        let rows = [];
+        wb.SheetNames.forEach(function(n){ rows = rows.concat(XLSX.utils.sheet_to_json(wb.Sheets[n], { header:1, raw:true, defval:'' })); });
+        res(rows);
+      } catch(e){ rej(e); }
+    };
+    r.onerror = rej; r.readAsArrayBuffer(file);
+  });
+}
+function parseLocale(rows, fileName){
+  const out = { etichetta:'', periodo_inizio:'', periodo_fine:'', ricavi:null, costi:null, risultato:null, liquidita_fine:null, voci:[], periodi:[], note:'' };
+  let anno = null;
+  const all = rows.map(function(r){ return r.join(' '); }).join(' ') + ' ' + fileName;
+  const ym = all.match(/\b(20\d{2})\b/); if (ym) anno = ym[1];
+  // riga di intestazione con i mesi
+  let mesiCol = null;
+  rows.some(function(r){
+    const cols = {};
+    r.forEach(function(c, i){ const t = String(c).trim().toLowerCase(); MESI_RE.forEach(function(re, m){ if (re.test(t)) cols[i] = m + 1; }); });
+    if (Object.keys(cols).length >= 3){ mesiCol = cols; return true; }
+    return false;
+  });
+  const isRic = /ricav|vendit|incass|entrat|fatturat|valore della produzione/i;
+  const isCos = /cost|spes|uscit|acquist|oneri/i;
+  const isRis = /utile|perdit|risultato/i;
+  const isLiq = /liquidit|disponibilit|cassa|banca/i;
+  const cand = { ricavi:[], costi:[], risultato:[], liq:[] };
+  const mensRic = {}, mensCos = {};
+  rows.forEach(function(r){
+    const label = r.map(function(c){ return typeof c === 'string' ? c.trim() : ''; }).filter(function(t){ return t && cellNum(t) === null; })[0];
+    if (!label) return;
+    const nums = []; r.forEach(function(c, i){ const n = cellNum(c); if (n !== null) nums.push({ i:i, n:n }); });
+    if (!nums.length) return;
+    const val = nums[nums.length - 1].n;
+    const tot = /total/i.test(label);
+    let tipo = 'altro';
+    if (isRis.test(label)) cand.risultato.push({ v:val, tot:tot });
+    else if (isRic.test(label)){ tipo = 'ricavo'; cand.ricavi.push({ v:val, tot:tot }); }
+    else if (isCos.test(label)){ tipo = 'costo'; cand.costi.push({ v:val, tot:tot }); }
+    else if (isLiq.test(label)) cand.liq.push({ v:val, tot:tot });
+    if (out.voci.length < 40) out.voci.push({ nome: label.slice(0,120), importo: val, tipo: tipo });
+    if (mesiCol && (tipo === 'ricavo' || tipo === 'costo') && (tot || true)){
+      nums.forEach(function(x){
+        const m = mesiCol[x.i]; if (!m) return;
+        const k = (anno || today().slice(0,4)) + '-' + String(m).padStart(2,'0');
+        const tgt = tipo === 'ricavo' ? mensRic : mensCos;
+        if (tot) tgt['T' + k] = x.n; else tgt[k] = (tgt[k] || 0) + x.n;
+      });
+    }
+  });
+  function pick(list){
+    if (!list.length) return null;
+    const t = list.filter(function(x){ return x.tot; });
+    if (t.length) return t[t.length - 1].v;
+    if (list.length === 1) return list[0].v;
+    return list.reduce(function(a, x){ return a + x.v; }, 0);
+  }
+  out.ricavi = pick(cand.ricavi); out.costi = pick(cand.costi);
+  out.risultato = cand.risultato.length ? cand.risultato[cand.risultato.length - 1].v : (out.ricavi !== null && out.costi !== null ? Math.round((out.ricavi - Math.abs(out.costi)) * 100) / 100 : null);
+  out.liquidita_fine = cand.liq.length ? cand.liq[cand.liq.length - 1].v : null;
+  if (mesiCol){
+    const mesi = {};
+    Object.keys(mensRic).concat(Object.keys(mensCos)).forEach(function(k){ mesi[k.replace(/^T/,'')] = 1; });
+    out.periodi = Object.keys(mesi).sort().map(function(k){
+      return { periodo:k, ricavi: mensRic['T'+k] !== undefined ? mensRic['T'+k] : (mensRic[k] !== undefined ? mensRic[k] : null), costi: mensCos['T'+k] !== undefined ? mensCos['T'+k] : (mensCos[k] !== undefined ? mensCos[k] : null) };
+    });
+  }
+  if (anno){ out.periodo_inizio = anno + '-01-01'; out.periodo_fine = anno + '-12-31'; out.etichetta = 'Bilancio ' + anno; }
+  else out.etichetta = fileName.replace(/\.[^.]+$/, '');
+  const manca = [];
+  if (out.ricavi === null) manca.push('ricavi'); if (out.costi === null) manca.push('costi'); if (!anno) manca.push('periodo');
+  out.note = 'Letto direttamente dal file, senza AI.' + (manca.length ? ' Non ho trovato: ' + manca.join(', ') + '. Inseriscili a mano.' : ' Controlla che i totali siano quelli giusti.');
+  return out;
+}
+
+document.getElementById('b-mano').onclick = function(){
+  pendingBilancio = { etichetta:'', voci:[], periodi:[], note:'', fonte:'inserito a mano' };
+  fillReview(pendingBilancio);
+};
+
 document.getElementById('b-analizza').onclick = async function(){
-  const text = document.getElementById('b-text').value.trim();
-  if (!files.length && !text){ msg('b-msg','err','Carica un file o scrivi il testo.'); return; }
+  const text0 = document.getElementById('b-text').value.trim();
+  const soloFogli = files.length && !text0 && files.every(function(f){ return /\.(xlsx|xls|csv)$/i.test(f.name); });
+  if (soloFogli){
+    try {
+      let rows = [];
+      for (const f of files) rows = rows.concat(await readRowsXlsx(f));
+      pendingBilancio = parseLocale(rows, files[0].name);
+      pendingBilancio.fonte = files.map(function(f){ return f.name; }).join(', ');
+      fillReview(pendingBilancio);
+      msg('b-msg','ok','Letto. Controlla i numeri qui sotto.');
+    } catch(e){ msg('b-msg','err','Non riesco a leggere il file: ' + e.message); }
+    return;
+  }
+  if (!files.length && !text0){ msg('b-msg','err','Carica un file o scrivi il testo.'); return; }
   const btn = this; btn.disabled = true; btn.textContent = 'Leggo il documento…';
+  const text = text0;
   msg('b-msg','info','Può volerci fino a un minuto.');
   try {
     const payload = { files: [], fogli: [], text: text };
@@ -642,8 +750,8 @@ document.getElementById('b-analizza').onclick = async function(){
     pendingBilancio.fonte = files.map(function(f){ return f.name; }).join(', ') || 'testo';
     fillReview(pendingBilancio);
     msg('b-msg','ok','Letto. Controlla i numeri qui sotto.');
-  } catch(e){ if (e.message !== 'unauthorized') msg('b-msg','err','Non riuscito: ' + e.message); }
-  finally { btn.disabled = false; btn.textContent = 'Analizza con AI'; }
+  } catch(e){ if (e.message !== 'unauthorized') msg('b-msg','err','La lettura con AI di PDF e foto non è disponibile (' + e.message + '). Usa Excel o CSV, oppure Inserisci a mano.'); }
+  finally { btn.disabled = false; btn.textContent = 'Leggi i numeri'; }
 };
 
 function fillReview(b){
