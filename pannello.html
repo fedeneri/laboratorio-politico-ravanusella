@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#164194">
-<title>Pannello — Scaro</title>
+<title>Pannello Scaro</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="content/assets/icons/icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -49,6 +49,13 @@ button.link{background:none;border:none;font-family:'IBM Plex Mono',monospace;fo
 .msg.err{display:block;background:#fbdcdc;border-color:var(--red);color:var(--red)}
 .who{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#5470B6}
 .who button{background:none;border:none;color:var(--red);text-decoration:underline;cursor:pointer;font-family:inherit;font-size:12px}
+.boxes{display:grid;gap:16px}
+.box{display:block;text-decoration:none;color:var(--blue);background:var(--white);border:3px solid var(--blue);box-shadow:6px 6px 0 var(--blue);padding:22px 22px 20px;cursor:pointer;text-align:left;font-family:inherit;width:100%}
+.box:active{transform:translate(3px,3px);box-shadow:3px 3px 0 var(--blue)}
+.box .ico{font-size:26px;line-height:1}
+.box h2{font-family:'Playfair Display',serif;font-weight:900;font-size:22px;margin:10px 0 4px}
+.box p{font-size:14px;color:#3c5a9e;line-height:1.4}
+.back{background:none;border:none;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--blue);text-decoration:underline;cursor:pointer;padding:0}
 .page{display:none}
 .page.active{display:block}
 </style>
@@ -60,7 +67,7 @@ button.link{background:none;border:none;font-family:'IBM Plex Mono',monospace;fo
     <img src="content/assets/icons/icon-192.png" alt="Scaro">
     <div>
       <h1>Pannello Scaro</h1>
-      <p>Pubblica talk, articoli ed eventi</p>
+      <p>Area soci</p>
     </div>
   </div>
 
@@ -70,17 +77,41 @@ button.link{background:none;border:none;font-family:'IBM Plex Mono',monospace;fo
       <label for="login-name">Il tuo nome</label>
       <input type="text" id="login-name" autocomplete="username" placeholder="Come ti hanno registrato">
       <label for="login-pin">PIN</label>
-      <input type="password" id="login-pin" inputmode="numeric" autocomplete="current-password" placeholder="••••">
+      <input type="password" id="login-pin" autocomplete="current-password" placeholder="••••">
       <button class="submit" id="login-btn">Entra</button>
       <div class="msg" id="login-msg"></div>
+    </div>
+  </div>
+
+  <!-- HOME -->
+  <div class="page" id="page-home">
+    <div class="who">
+      <span id="who-name"></span>
+      <button id="logout-btn">Esci</button>
+    </div>
+    <div class="boxes">
+      <button type="button" class="box" id="box-pubblica">
+        <div class="ico">✍️</div>
+        <h2>Pubblica</h2>
+        <p>Talk, articoli ed eventi sul sito</p>
+      </button>
+      <a class="box" href="gestionale.html">
+        <div class="ico">🎟️</div>
+        <h2>Biglietti</h2>
+        <p>Vendita, prenotazioni, check-in, lista</p>
+      </a>
+      <a class="box" href="cassa.html">
+        <div class="ico">📊</div>
+        <h2>Cassa</h2>
+        <p>Chiusura della sera, bilanci, grafici</p>
+      </a>
     </div>
   </div>
 
   <!-- COMPOSE -->
   <div class="page" id="page-compose">
     <div class="who">
-      <span id="who-name"></span>
-      <button id="logout-btn">Esci</button>
+      <button class="back" id="back-home">← Pannello</button>
     </div>
 
     <div class="type-toggle">
@@ -192,26 +223,44 @@ function clearSession(){
   localStorage.removeItem(LS_KEY);
 }
 
-function enterCompose(session){
+function enterHome(session){
   document.getElementById('who-name').textContent = session.name;
+  showPage('page-home');
+}
+function enterCompose(){
   document.getElementById('t-date').value = todayISO();
   document.getElementById('e-date').value = todayISO();
   showPage('page-compose');
 }
+document.getElementById('box-pubblica').onclick = enterCompose;
+document.getElementById('back-home').onclick = function(){ showPage('page-home'); };
 
 (function init(){
   const s = getSession();
-  if (s && s.name && s.pin) enterCompose(s);
+  if (s && s.name && s.pin) enterHome(s);
 })();
 
-document.getElementById('login-btn').onclick = function(){
-  const name = document.getElementById('login-name').value.trim();
+document.getElementById('login-btn').onclick = async function(){
+  const name = document.getElementById('login-name').value.trim().toLowerCase();
   const pin = document.getElementById('login-pin').value.trim();
   const msg = document.getElementById('login-msg');
+  const btn = document.getElementById('login-btn');
   if (!name || !pin){ msg.className = 'msg err'; msg.textContent = 'Inserisci nome e PIN.'; return; }
-  setSession(name, pin);
-  msg.className = 'msg';
-  enterCompose({ name: name, pin: pin });
+  btn.disabled = true; btn.textContent = 'Controllo…'; msg.className = 'msg';
+  try {
+    const res = await fetch(API_BASE + '/api/socio/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name, pin: pin })
+    });
+    if (res.status === 404){ setSession(name, pin); enterHome({ name: name, pin: pin }); return; } // worker non ancora aggiornato
+    if (!res.ok){ msg.className = 'msg err'; msg.textContent = res.status === 401 ? 'Nome o PIN non corretti.' : 'Errore del server, riprova.'; return; }
+    setSession(name, pin);
+    enterHome({ name: name, pin: pin });
+  } catch(e){
+    msg.className = 'msg err'; msg.textContent = 'Errore di connessione. Riprova.';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Entra';
+  }
 };
 
 document.getElementById('logout-btn').onclick = function(){

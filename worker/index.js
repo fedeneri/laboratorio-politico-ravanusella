@@ -37,8 +37,10 @@
  *                                        del sistema (i soci non hanno un
  *                                        account GitHub proprio)
  *   SOCI_CREDENTIALS                  -> JSON tipo {"Mario":"1234","Anna":"5678"}
- *                                        con nome e PIN di chi puo' pubblicare
- *                                        da pannello.html
+ *                                        con nome e PIN dei soci: valgono per
+ *                                        pannello.html, gestionale.html e cassa.html
+ *   ANTHROPIC_API_KEY                 -> chiave API Anthropic, per leggere i
+ *                                        bilanci caricati in cassa.html
  *
  * Richiede inoltre un KV namespace collegato con binding "TICKETS"
  * (vedi wrangler.toml).
@@ -303,7 +305,7 @@ async function handleBoxOfficeReserve(request, env, origin) {
   // subito, il pagamento si conferma dopo (vedi handleConfirmPayment) quando
   // arriva davvero al botteghino.
   const key = request.headers.get('X-Admin-Key') || '';
-  if (!env.ADMIN_KEY || key !== env.ADMIN_KEY) return json({ ok: false, error: 'unauthorized' }, 401, origin);
+  if (!isAdmin(env, key)) return json({ ok: false, error: 'unauthorized' }, 401, origin);
 
   const body = await request.json().catch(() => null);
   if (!body || !body.eventId || !body.tierLabel || !body.buyerName) return json({ ok: false, error: 'bad-request' }, 400, origin);
@@ -338,7 +340,7 @@ async function handleConfirmPayment(request, env, origin, code) {
   // Conferma il pagamento di una prenotazione esistente, inserendo il codice
   // che il cliente ha ricevuto al momento della prenotazione.
   const key = request.headers.get('X-Admin-Key') || '';
-  if (!env.ADMIN_KEY || key !== env.ADMIN_KEY) return json({ ok: false, error: 'unauthorized' }, 401, origin);
+  if (!isAdmin(env, key)) return json({ ok: false, error: 'unauthorized' }, 401, origin);
 
   const body = await request.json().catch(() => null);
   if (!body || !body.paymentMethod) return json({ ok: false, error: 'bad-request' }, 400, origin);
@@ -362,7 +364,7 @@ async function handleBoxOfficeTicket(request, env, origin) {
   // passare da PayPal. Protetto dalla stessa ADMIN_KEY usata per la lista
   // acquirenti, cosi' solo chi e' fisicamente alla cassa puo' generarli.
   const key = request.headers.get('X-Admin-Key') || '';
-  if (!env.ADMIN_KEY || key !== env.ADMIN_KEY) return json({ ok: false, error: 'unauthorized' }, 401, origin);
+  if (!isAdmin(env, key)) return json({ ok: false, error: 'unauthorized' }, 401, origin);
 
   const body = await request.json().catch(() => null);
   if (!body || !body.eventId || !body.tierLabel || !body.paymentMethod) return json({ ok: false, error: 'bad-request' }, 400, origin);
@@ -397,7 +399,7 @@ async function handleCheckinByEmail(request, env, origin) {
   // Fa il check-in di tutti i biglietti pagati e non ancora usati di una
   // email, in un colpo solo (utile per chi ha comprato piu' biglietti).
   const key = request.headers.get('X-Admin-Key') || '';
-  if (!env.ADMIN_KEY || key !== env.ADMIN_KEY) return json({ ok: false, error: 'unauthorized' }, 401, origin);
+  if (!isAdmin(env, key)) return json({ ok: false, error: 'unauthorized' }, 401, origin);
 
   const body = await request.json().catch(() => null);
   const email = (body && body.email || '').trim().toLowerCase();
@@ -424,7 +426,7 @@ async function handleCheckinByEmail(request, env, origin) {
 
 async function handleDeleteTicket(request, env, origin, code) {
   const key = request.headers.get('X-Admin-Key') || '';
-  if (!env.ADMIN_KEY || key !== env.ADMIN_KEY) return json({ ok: false, error: 'unauthorized' }, 401, origin);
+  if (!isAdmin(env, key)) return json({ ok: false, error: 'unauthorized' }, 401, origin);
   const raw = await env.TICKETS.get('ticket:' + code);
   if (!raw) return json({ ok: false, error: 'not-found' }, 404, origin);
   await env.TICKETS.delete('ticket:' + code);
@@ -435,7 +437,7 @@ async function handleReconcileCreateTicket(request, env, origin) {
   // Genera il biglietto mancante per un pagamento PayPal gia' avvenuto
   // (trovato con /api/reconcile), senza richiamare PayPal di nuovo.
   const key = request.headers.get('X-Admin-Key') || '';
-  if (!env.ADMIN_KEY || key !== env.ADMIN_KEY) return json({ ok: false, error: 'unauthorized' }, 401, origin);
+  if (!isAdmin(env, key)) return json({ ok: false, error: 'unauthorized' }, 401, origin);
 
   const body = await request.json().catch(() => null);
   if (!body || !body.orderId || !body.eventId) return json({ ok: false, error: 'bad-request' }, 400, origin);
@@ -491,7 +493,7 @@ async function handleListTickets(request, env, origin) {
   // e' protetto da una chiave (ADMIN_KEY) che non deve mai finire nel
   // codice del sito, solo su Cloudflare.
   const key = request.headers.get('X-Admin-Key') || '';
-  if (!env.ADMIN_KEY || key !== env.ADMIN_KEY) return json({ ok: false, error: 'unauthorized' }, 401, origin);
+  if (!isAdmin(env, key)) return json({ ok: false, error: 'unauthorized' }, 401, origin);
 
   const list = await env.TICKETS.list({ prefix: 'ticket:' });
   const tickets = await Promise.all(list.keys.map(async (k) => {
@@ -842,12 +844,261 @@ async function handleCmsPublish(request, env, origin) {
   return json({ ok: true, id: slug }, 200, origin);
 }
 
+// ===================================================================
+// ACCESSO UNICO SOCI
+// La biglietteria accetta sia la vecchia ADMIN_KEY sia nome e PIN dei
+// soci (gli stessi di pannello.html), passati come
+//   X-Admin-Key: socio <nome>:<pin>   (nome e pin con encodeURIComponent)
+// ===================================================================
+function isAdmin(env, key) {
+  if (!key) return false;
+  if (env.ADMIN_KEY && key === env.ADMIN_KEY) return true;
+  if (key.indexOf('socio ') === 0) {
+    const rest = key.slice(6);
+    const i = rest.indexOf(':');
+    if (i < 1) return false;
+    let name, pin;
+    try {
+      name = decodeURIComponent(rest.slice(0, i));
+      pin = decodeURIComponent(rest.slice(i + 1));
+    } catch (e) { return false; }
+    return checkSocio(env, name, pin);
+  }
+  return false;
+}
+
+async function handleSocioLogin(request, env, origin) {
+  const body = await request.json().catch(() => null);
+  if (!body || !checkSocio(env, body.name, body.pin)) return json({ ok: false, error: 'unauthorized' }, 401, origin);
+  return json({ ok: true, name: body.name }, 200, origin);
+}
+
+// ===================================================================
+// CASSA
+// Dati nel KV TICKETS (mai nel repository, che e' pubblico):
+//   cassa:AAAA   -> { giorni: { "AAAA-MM-GG": [ {id,tipo,importo,voce,autore,ts} ] } }
+//   cassa:bilanci -> [ {id, etichetta, periodo_inizio, periodo_fine, ricavi,
+//                       costi, risultato, liquidita_fine, voci, periodi,
+//                       note, fonte, autore, ts} ]
+// Variabile segreta in piu': ANTHROPIC_API_KEY (per leggere i bilanci).
+// ===================================================================
+const CASSA_ANNI_KEY = 'cassa:anni';
+const CASSA_BILANCI_KEY = 'cassa:bilanci';
+
+function cassaId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+async function cassaBody(request, env, origin) {
+  const body = await request.json().catch(() => null);
+  if (!body) return { error: json({ ok: false, error: 'bad-request' }, 400, origin) };
+  if (!checkSocio(env, body.name, body.pin)) return { error: json({ ok: false, error: 'unauthorized' }, 401, origin) };
+  return { body: body };
+}
+
+async function getJSON(env, key, fallback) {
+  const v = await env.TICKETS.get(key);
+  if (!v) return fallback;
+  try { return JSON.parse(v); } catch (e) { return fallback; }
+}
+
+async function handleCassaData(request, env, origin) {
+  const r = await cassaBody(request, env, origin);
+  if (r.error) return r.error;
+  const anni = await getJSON(env, CASSA_ANNI_KEY, []);
+  const giorni = {};
+  for (const anno of anni) {
+    const data = await getJSON(env, 'cassa:' + anno, { giorni: {} });
+    Object.assign(giorni, data.giorni || {});
+  }
+  const bilanci = await getJSON(env, CASSA_BILANCI_KEY, []);
+  return json({ ok: true, giorni: giorni, bilanci: bilanci }, 200, origin);
+}
+
+function validDate(d) {
+  return typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d);
+}
+
+async function handleCassaAddRighe(request, env, origin) {
+  const r = await cassaBody(request, env, origin);
+  if (r.error) return r.error;
+  const b = r.body;
+  if (!validDate(b.date)) return json({ ok: false, error: 'data non valida' }, 400, origin);
+  const righe = Array.isArray(b.righe) ? b.righe : [];
+  const pulite = [];
+  for (const x of righe) {
+    const importo = Math.round(Number(String(x.importo).replace(',', '.')) * 100) / 100;
+    if (!isFinite(importo) || importo <= 0) continue;
+    if (x.tipo !== 'entrata' && x.tipo !== 'uscita') continue;
+    pulite.push({
+      id: cassaId(),
+      tipo: x.tipo,
+      importo: importo,
+      voce: String(x.voce || '').slice(0, 120),
+      autore: b.name,
+      ts: new Date().toISOString()
+    });
+  }
+  if (!pulite.length) return json({ ok: false, error: 'nessun importo valido' }, 400, origin);
+
+  const anno = b.date.slice(0, 4);
+  const key = 'cassa:' + anno;
+  const data = await getJSON(env, key, { giorni: {} });
+  data.giorni = data.giorni || {};
+  data.giorni[b.date] = (data.giorni[b.date] || []).concat(pulite);
+  await env.TICKETS.put(key, JSON.stringify(data));
+
+  const anni = await getJSON(env, CASSA_ANNI_KEY, []);
+  if (anni.indexOf(anno) === -1) {
+    anni.push(anno);
+    anni.sort();
+    await env.TICKETS.put(CASSA_ANNI_KEY, JSON.stringify(anni));
+  }
+  return json({ ok: true, righe: data.giorni[b.date] }, 200, origin);
+}
+
+async function handleCassaDeleteRiga(request, env, origin) {
+  const r = await cassaBody(request, env, origin);
+  if (r.error) return r.error;
+  const b = r.body;
+  if (!validDate(b.date) || !b.id) return json({ ok: false, error: 'bad-request' }, 400, origin);
+  const key = 'cassa:' + b.date.slice(0, 4);
+  const data = await getJSON(env, key, { giorni: {} });
+  const lista = (data.giorni && data.giorni[b.date]) || [];
+  const nuova = lista.filter(function (x) { return x.id !== b.id; });
+  if (nuova.length === lista.length) return json({ ok: false, error: 'riga non trovata' }, 404, origin);
+  if (nuova.length) data.giorni[b.date] = nuova; else delete data.giorni[b.date];
+  await env.TICKETS.put(key, JSON.stringify(data));
+  return json({ ok: true }, 200, origin);
+}
+
+const BILANCIO_PROMPT = [
+  'Sei un contabile. Ti do un bilancio o un documento contabile di una piccola cooperativa italiana (bar, eventi, libreria).',
+  'Estrai i numeri e rispondi SOLO con un oggetto JSON valido, senza testo prima o dopo, con questa forma:',
+  '{',
+  '  "etichetta": "nome breve, es. Bilancio 2025 o Situazione gennaio-giugno 2026",',
+  '  "periodo_inizio": "AAAA-MM-GG",',
+  '  "periodo_fine": "AAAA-MM-GG",',
+  '  "ricavi": numero totale ricavi o null,',
+  '  "costi": numero totale costi o null,',
+  '  "risultato": utile (positivo) o perdita (negativo) o null,',
+  '  "liquidita_fine": cassa piu banca a fine periodo o null,',
+  '  "voci": [ { "nome": "voce del documento", "importo": numero, "tipo": "ricavo" | "costo" | "altro" } ],',
+  '  "periodi": [ { "periodo": "AAAA-MM", "ricavi": numero o null, "costi": numero o null } ],',
+  '  "note": "cosa non e chiaro o manca, in italiano, breve"',
+  '}',
+  'Regole: non inventare mai numeri. Se un dato non c e, metti null. "periodi" solo se il documento ha davvero un dettaglio mese per mese, altrimenti lista vuota.',
+  'Importi in euro come numeri (punto decimale, niente simbolo). Massimo 40 voci, le piu rilevanti.'
+].join('\n');
+
+async function handleBilancioAnalizza(request, env, origin) {
+  const r = await cassaBody(request, env, origin);
+  if (r.error) return r.error;
+  if (!env.ANTHROPIC_API_KEY) return json({ ok: false, error: 'ANTHROPIC_API_KEY non configurata sul worker' }, 500, origin);
+  const b = r.body;
+  const content = [];
+  const files = Array.isArray(b.files) ? b.files.slice(0, 5) : [];
+  for (const f of files) {
+    if (!f || !f.data) continue;
+    if (f.type === 'application/pdf') {
+      content.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: f.data } });
+    } else if (/^image\/(jpeg|png|gif|webp)$/.test(f.type)) {
+      content.push({ type: 'image', source: { type: 'base64', media_type: f.type, data: f.data } });
+    }
+  }
+  const testi = [];
+  if (Array.isArray(b.fogli)) b.fogli.slice(0, 5).forEach(function (t) { testi.push('Foglio di calcolo "' + t.name + '":\n' + String(t.csv).slice(0, 120000)); });
+  if (b.text && String(b.text).trim()) testi.push('Testo scritto dal socio:\n' + String(b.text).slice(0, 40000));
+  if (!content.length && !testi.length) return json({ ok: false, error: 'niente da analizzare' }, 400, origin);
+  content.push({ type: 'text', text: (testi.length ? testi.join('\n\n') + '\n\n' : '') + BILANCIO_PROMPT });
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': env.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: env.ANTHROPIC_MODEL || 'claude-sonnet-5-5',
+      max_tokens: 4000,
+      messages: [{ role: 'user', content: content }]
+    })
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data) return json({ ok: false, error: 'analisi-fallita', detail: data && data.error ? data.error.message : res.status }, 502, origin);
+  const testo = (data.content || []).filter(function (c) { return c.type === 'text'; }).map(function (c) { return c.text; }).join('');
+  const m = testo.match(/\{[\s\S]*\}/);
+  if (!m) return json({ ok: false, error: 'risposta non leggibile' }, 502, origin);
+  let estratto;
+  try { estratto = JSON.parse(m[0]); } catch (e) { return json({ ok: false, error: 'risposta non leggibile' }, 502, origin); }
+  return json({ ok: true, bilancio: estratto }, 200, origin);
+}
+
+function numOrNull(v) {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(String(v).replace(',', '.'));
+  return isFinite(n) ? Math.round(n * 100) / 100 : null;
+}
+
+async function handleBilancioSalva(request, env, origin) {
+  const r = await cassaBody(request, env, origin);
+  if (r.error) return r.error;
+  const x = r.body.bilancio || {};
+  if (!validDate(x.periodo_inizio) || !validDate(x.periodo_fine)) return json({ ok: false, error: 'periodo non valido' }, 400, origin);
+  const pulito = {
+    id: x.id || cassaId(),
+    etichetta: String(x.etichetta || 'Bilancio').slice(0, 120),
+    periodo_inizio: x.periodo_inizio,
+    periodo_fine: x.periodo_fine,
+    ricavi: numOrNull(x.ricavi),
+    costi: numOrNull(x.costi),
+    risultato: numOrNull(x.risultato),
+    liquidita_fine: numOrNull(x.liquidita_fine),
+    voci: (Array.isArray(x.voci) ? x.voci : []).slice(0, 60).map(function (v) {
+      return { nome: String(v.nome || '').slice(0, 120), importo: numOrNull(v.importo), tipo: ['ricavo', 'costo'].indexOf(v.tipo) >= 0 ? v.tipo : 'altro' };
+    }),
+    periodi: (Array.isArray(x.periodi) ? x.periodi : []).filter(function (p) { return /^\d{4}-\d{2}$/.test(p.periodo); }).slice(0, 60).map(function (p) {
+      return { periodo: p.periodo, ricavi: numOrNull(p.ricavi), costi: numOrNull(p.costi) };
+    }),
+    note: String(x.note || '').slice(0, 2000),
+    fonte: String(x.fonte || '').slice(0, 200),
+    autore: r.body.name,
+    ts: new Date().toISOString()
+  };
+  const lista = await getJSON(env, CASSA_BILANCI_KEY, []);
+  const i = lista.findIndex(function (b) { return b.id === pulito.id; });
+  if (i >= 0) lista[i] = pulito; else lista.push(pulito);
+  lista.sort(function (a, b) { return a.periodo_inizio < b.periodo_inizio ? -1 : 1; });
+  await env.TICKETS.put(CASSA_BILANCI_KEY, JSON.stringify(lista));
+  return json({ ok: true, bilancio: pulito }, 200, origin);
+}
+
+async function handleBilancioDelete(request, env, origin) {
+  const r = await cassaBody(request, env, origin);
+  if (r.error) return r.error;
+  const lista = await getJSON(env, CASSA_BILANCI_KEY, []);
+  const nuova = lista.filter(function (b) { return b.id !== r.body.id; });
+  await env.TICKETS.put(CASSA_BILANCI_KEY, JSON.stringify(nuova));
+  return json({ ok: true }, 200, origin);
+}
+
 export default {
   async fetch(request, env) {
     const origin = request.headers.get('Origin') || '';
     const url = new URL(request.url);
 
     if (request.method === 'OPTIONS') return new Response(null, { headers: corsHeaders(origin) });
+
+    if (request.method === 'POST') {
+      if (url.pathname === '/api/socio/login') return handleSocioLogin(request, env, origin);
+      if (url.pathname === '/api/cassa/data') return handleCassaData(request, env, origin);
+      if (url.pathname === '/api/cassa/righe') return handleCassaAddRighe(request, env, origin);
+      if (url.pathname === '/api/cassa/righe/elimina') return handleCassaDeleteRiga(request, env, origin);
+      if (url.pathname === '/api/cassa/bilancio/analizza') return handleBilancioAnalizza(request, env, origin);
+      if (url.pathname === '/api/cassa/bilancio/salva') return handleBilancioSalva(request, env, origin);
+      if (url.pathname === '/api/cassa/bilancio/elimina') return handleBilancioDelete(request, env, origin);
+    }
 
     if (url.pathname === '/api/cms/publish' && request.method === 'POST') {
       return handleCmsPublish(request, env, origin);
